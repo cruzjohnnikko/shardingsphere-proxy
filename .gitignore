@@ -1,0 +1,14 @@
+# Environment variables for podman-compose
+.env
+
+# Maven build outputs
+target/
+
+# Log files
+logs/
+apache-shardingsphere-5.5.2-shardingsphere-proxy-bin/logs/stdout.log
+
+# IDE specific files
+.idea/
+.vscode/
+*.iml

@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    container_name: postgres_cdc_demo
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    command: >
+      -c wal_level=logical
+      -c max_wal_senders=10
+      -c max_replication_slots=10
+      -c wal_sender_timeout=0
+      -c max_connections=600
+
+  zookeeper:
+    image: zookeeper:3.7
+    container_name: zookeeper_cdc_demo
+    ports:
+      - "2181:2181"
