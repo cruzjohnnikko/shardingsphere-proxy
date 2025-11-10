@@ -4,8 +4,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PreDestroy;
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.*;
 
 /**
  * Data Generator Service
@@ -33,6 +35,109 @@ public class DataGeneratorService {
     private String targetDbPassword;
 
     private final Random random = new Random();
+    private ScheduledExecutorService generatorExecutor;
+    private volatile boolean generatorRunning = false;
+    private int generatorInterval = 1000;
+
+    @PreDestroy
+    public void destroy() {
+        stopGenerator();
+    }
+
+    public void startGenerator(int intervalMs, String operationType) {
+        if (generatorRunning) {
+            log.warn("Generator is already running");
+            return;
+        }
+
+        generatorInterval = intervalMs;
+        generatorRunning = true;
+        generatorExecutor = Executors.newSingleThreadScheduledExecutor();
+
+        generatorExecutor.scheduleAtFixedRate(() -> {
+            try {
+                if (!generatorRunning) {
+                    return;
+                }
+
+                switch (operationType.toUpperCase()) {
+                    case "INSERT":
+                        generateData(1);
+                        break;
+                    case "UPDATE":
+                        updateRandomData();
+                        break;
+                    case "DELETE":
+                        deleteRandomData();
+                        break;
+                    case "MIXED":
+                    default:
+                        int operation = random.nextInt(100);
+                        if (operation < 60) {
+                            generateData(1); // 60% INSERT
+                        } else if (operation < 90) {
+                            updateRandomData(); // 30% UPDATE
+                        } else {
+                            deleteRandomData(); // 10% DELETE
+                        }
+                        break;
+                }
+            } catch (Exception e) {
+                log.error("Error in generator", e);
+            }
+        }, 0, intervalMs, TimeUnit.MILLISECONDS);
+
+        log.info("Data generator started with interval {}ms, operation: {}", intervalMs, operationType);
+    }
+
+    public void stopGenerator() {
+        generatorRunning = false;
+        if (generatorExecutor != null) {
+            generatorExecutor.shutdownNow();
+            generatorExecutor = null;
+        }
+        log.info("Data generator stopped");
+    }
+
+    public boolean isGeneratorRunning() {
+        return generatorRunning;
+    }
+
+    public int getGeneratorInterval() {
+        return generatorInterval;
+    }
+
+    private void updateRandomData() {
+        try (Connection conn = DriverManager.getConnection(sourceDbUrl, sourceDbUsername, sourceDbPassword)) {
+            String selectSql = "SELECT order_id FROM t_order ORDER BY RANDOM() LIMIT 1";
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(selectSql)) {
+                if (rs.next()) {
+                    int orderId = rs.getInt("order_id");
+                    String[] statuses = {"new", "processing", "completed", "cancelled"};
+                    String newStatus = statuses[random.nextInt(statuses.length)];
+                    updateData(orderId, newStatus);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Error updating random data", e);
+        }
+    }
+
+    private void deleteRandomData() {
+        try (Connection conn = DriverManager.getConnection(sourceDbUrl, sourceDbUsername, sourceDbPassword)) {
+            String selectSql = "SELECT order_id FROM t_order ORDER BY RANDOM() LIMIT 1";
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(selectSql)) {
+                if (rs.next()) {
+                    int orderId = rs.getInt("order_id");
+                    deleteData(orderId);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Error deleting random data", e);
+        }
+    }
 
     public void generateData(int count) {
         try (Connection conn = DriverManager.getConnection(sourceDbUrl, sourceDbUsername, sourceDbPassword)) {
@@ -44,7 +149,7 @@ public class DataGeneratorService {
                     ps.executeUpdate();
                 }
             }
-            log.info("Generated {} records in source database", count);
+            log.debug("Generated {} records in source database", count);
         } catch (SQLException e) {
             log.error("Error generating data", e);
             throw new RuntimeException("Failed to generate data", e);
@@ -58,7 +163,7 @@ public class DataGeneratorService {
                 ps.setString(1, newStatus);
                 ps.setInt(2, orderId);
                 int updated = ps.executeUpdate();
-                log.info("Updated {} record(s) in source database", updated);
+                log.debug("Updated {} record(s) in source database", updated);
             }
         } catch (SQLException e) {
             log.error("Error updating data", e);
@@ -72,7 +177,7 @@ public class DataGeneratorService {
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, orderId);
                 int deleted = ps.executeUpdate();
-                log.info("Deleted {} record(s) from source database", deleted);
+                log.debug("Deleted {} record(s) from source database", deleted);
             }
         } catch (SQLException e) {
             log.error("Error deleting data", e);
@@ -159,4 +264,3 @@ public class DataGeneratorService {
         return 0;
     }
 }
-

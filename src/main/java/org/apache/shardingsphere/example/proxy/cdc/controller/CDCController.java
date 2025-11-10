@@ -6,6 +6,7 @@ import org.apache.shardingsphere.example.proxy.cdc.model.CDCStatus;
 import org.apache.shardingsphere.example.proxy.cdc.service.CDCClientService;
 import org.apache.shardingsphere.example.proxy.cdc.service.DataGeneratorService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -284,19 +285,46 @@ public class CDCController {
 
     @GetMapping("/generator/status")
     public ResponseEntity<Map<String, Object>> getGeneratorStatus() {
-        return ResponseEntity.ok(Map.of("running", false, "interval", 1000));
+        return ResponseEntity.ok(Map.of(
+            "running", dataGeneratorService.isGeneratorRunning(),
+            "interval", dataGeneratorService.getGeneratorInterval()
+        ));
     }
 
     @PostMapping("/generator/start")
-    public ResponseEntity<Map<String, String>> startGenerator(
+    public ResponseEntity<Map<String, Object>> startGenerator(
             @RequestParam(defaultValue = "1000") int interval,
-            @RequestParam(defaultValue = "insert") String operation) {
-        return ResponseEntity.ok(Map.of("message", "Generator not implemented - use Generate Data button instead"));
+            @RequestParam(defaultValue = "MIXED") String operation) {
+        try {
+            dataGeneratorService.startGenerator(interval, operation);
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Data generator started with interval " + interval + "ms"
+            ));
+        } catch (Exception e) {
+            log.error("Error starting generator", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error: " + e.getMessage()
+            ));
+        }
     }
 
     @PostMapping("/generator/stop")
-    public ResponseEntity<Map<String, String>> stopGenerator() {
-        return ResponseEntity.ok(Map.of("message", "Generator stopped"));
+    public ResponseEntity<Map<String, Object>> stopGenerator() {
+        try {
+            dataGeneratorService.stopGenerator();
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Data generator stopped"
+            ));
+        } catch (Exception e) {
+            log.error("Error stopping generator", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error: " + e.getMessage()
+            ));
+        }
     }
 
     @GetMapping("/events")

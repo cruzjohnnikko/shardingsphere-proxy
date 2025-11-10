@@ -84,14 +84,8 @@ function connectWebSocket() {
         };
         
         ws.onmessage = (event) => {
-            console.log('📥 Raw WebSocket message:', event.data);
-            try {
-                const message = JSON.parse(event.data);
-                console.log('📦 Parsed message:', message);
-                handleWebSocketMessage(message);
-            } catch (error) {
-                console.error('❌ Error parsing WebSocket message:', error);
-            }
+            const message = JSON.parse(event.data);
+            handleWebSocketMessage(message);
         };
         
         ws.onerror = (error) => {
@@ -118,39 +112,19 @@ function connectWebSocket() {
 }
 
 function handleWebSocketMessage(message) {
-    console.log('🔔 WebSocket message received:', message);
-    console.log('   Message type:', message.type);
-    
     switch (message.type) {
-        case 'cdcEvent':
         case 'event':
-            console.log('✅ CDC Event detected! Payload:', message.payload || message.data);
-            const eventData = message.payload || message.data;
-            if (eventData) {
-                console.log('   Calling addCdcEventToTable with:', eventData);
-                addCdcEventToTable(eventData);
-                eventCount++;
-                if (eventCountEl) eventCountEl.textContent = eventCount.toLocaleString();
-                console.log('   Event added, total count:', eventCount);
-            } else {
-                console.error('❌ No event data in message!');
-            }
+            addEvent(message.data);
             break;
-        case 'cdcStatistics':
         case 'statistics':
-            console.log('📊 Statistics update:', message.payload || message.data);
-            updateStatistics(message.payload || message.data);
+            updateStatistics(message.data);
             break;
         case 'status':
-            console.log('ℹ️ Status message:', message.message);
             addMessage(message.message, 'info');
             break;
         case 'error':
-            console.error('❌ Error message:', message.message);
             addMessage(message.message, 'error');
             break;
-        default:
-            console.warn('⚠️ Unknown message type:', message.type);
     }
 }
 
@@ -496,73 +470,6 @@ function addEvent(event) {
     }
 }
 
-function addCdcEventToTable(event) {
-    console.log('Adding CDC event to table:', event);
-    
-    // Try both possible table IDs
-    let tableBody = document.getElementById('cdcEventsTable');
-    if (!tableBody) {
-        tableBody = document.getElementById('eventsTableBody');
-    }
-    
-    if (!tableBody) {
-        console.error('CDC Events table not found (tried cdcEventsTable and eventsTableBody)');
-        return;
-    }
-    
-    console.log('Table found:', tableBody.id, 'Current rows:', tableBody.rows.length);
-    
-    // Remove placeholder if exists
-    if (tableBody.rows.length === 1 && tableBody.rows[0].cells.length === 1) {
-        tableBody.innerHTML = '';
-    }
-    
-    // Handle different field names
-    const beforeData = event.beforeData || event.before || {};
-    const afterData = event.afterData || event.after || event.data || {};
-    
-    // Check if table expects detailed columns (Order ID, User ID, Status) or generic columns
-    const firstRow = tableBody.parentElement.querySelector('thead tr');
-    const headers = firstRow ? Array.from(firstRow.cells).map(c => c.textContent.trim()) : [];
-    
-    console.log('Table headers:', headers);
-    
-    const row = tableBody.insertRow(0);
-    
-    if (headers.includes('Order ID') || headers.includes('User ID')) {
-        // Detailed table format: Type | Order ID | User ID | Status (Before/After) | Time
-        row.insertCell(0).textContent = event.eventType || 'UNKNOWN';
-        row.insertCell(1).textContent = afterData.order_id || beforeData.order_id || '-';
-        row.insertCell(2).textContent = afterData.user_id || beforeData.user_id || '-';
-        
-        // Status column showing before/after
-        let statusText = '';
-        if (event.eventType === 'INSERT') {
-            statusText = afterData.status || '-';
-        } else if (event.eventType === 'UPDATE') {
-            statusText = `${beforeData.status || '?'} → ${afterData.status || '?'}`;
-        } else if (event.eventType === 'DELETE') {
-            statusText = beforeData.status || '-';
-        }
-        row.insertCell(3).textContent = statusText;
-        row.insertCell(4).textContent = new Date().toLocaleTimeString();
-    } else {
-        // Generic table format: Event Type | Database | Table Name | Before Data | After Data
-        row.insertCell(0).textContent = event.eventType || 'UNKNOWN';
-        row.insertCell(1).textContent = event.database || '-';
-        row.insertCell(2).textContent = event.tableName || '-';
-        row.insertCell(3).textContent = Object.keys(beforeData).length > 0 ? JSON.stringify(beforeData) : '-';
-        row.insertCell(4).textContent = Object.keys(afterData).length > 0 ? JSON.stringify(afterData) : '-';
-    }
-    
-    // Keep only last 50 events
-    if (tableBody.rows.length > 50) {
-        tableBody.deleteRow(tableBody.rows.length - 1);
-    }
-    
-    console.log('Event added successfully, total rows now:', tableBody.rows.length);
-}
-
 function addMessage(message, type) {
     const messageEl = document.createElement('div');
     messageEl.className = `message ${type}`;
@@ -682,17 +589,7 @@ async function fetchDataComparison() {
 
         // Display total events captured (all CDC events regardless of type)
         document.getElementById('totalEventsCaptured').textContent = stats.totalEvents ? stats.totalEvents.toLocaleString() : '0';
-        
-        // Don't call renderCdcEventsTable here - it clears the table!
-        // The table is populated in real-time via WebSocket (addCdcEventToTable)
-        // Only render if table is completely empty
-        const tableBody = document.getElementById('cdcEventsTable');
-        if (tableBody.rows.length === 0 || (tableBody.rows.length === 1 && tableBody.rows[0].cells.length === 1 && tableBody.rows[0].cells[0].textContent.includes('No CDC'))) {
-            console.log('CDC Events table is empty, rendering placeholder');
-            renderCdcEventsTable(cdcEvents || []);
-        } else {
-            console.log('CDC Events table has', tableBody.rows.length, 'rows, preserving them');
-        }
+        renderCdcEventsTable(cdcEvents || []);
 
         // Calculate Unsynced Records (only positive values make sense)
         // Unsynced = source records that haven't been synced to target yet
@@ -817,21 +714,11 @@ function renderReadDbDataTable(records) {
 }
 
 function renderCdcEventsTable(events) {
-    console.log('renderCdcEventsTable called with', events.length, 'events');
     const tableBody = document.getElementById('cdcEventsTable');
+    tableBody.innerHTML = '';
     
-    // DON'T clear existing rows - this function is called on tab switch
-    // Only show "no events" message if table is truly empty AND no events to render
-    if (tableBody.rows.length === 0 || (tableBody.rows.length === 1 && tableBody.rows[0].cells.length === 1)) {
-        if (events.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666;">No CDC events captured yet.</td></tr>';
-            return;
-        }
-        // Table was empty, now populate it
-        tableBody.innerHTML = '';
-    } else {
-        // Table already has events from WebSocket, don't touch it!
-        console.log('Table already has', tableBody.rows.length, 'rows - preserving them');
+    if (events.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666;">No CDC events captured yet.</td></tr>';
         return;
     }
     
@@ -857,5 +744,4 @@ function renderCdcEventsTable(events) {
         `;
         tableBody.appendChild(row);
     });
-    console.log('Table now has', tableBody.rows.length, 'rows');
 }

@@ -93,17 +93,22 @@ public class CDCClientService {
         // Take initial snapshot and replicate existing records
         Map<Integer, Map<String, Object>> initialSnapshot = takeSnapshot();
         log.info("Initial snapshot contains {} records - replicating to target", initialSnapshot.size());
-        
+
         // Replicate all existing records to target
+        int eventsSent = 0;
         for (Map<String, Object> row : initialSnapshot.values()) {
             CDCEvent event = createInsertEvent(row);
+            log.debug("Processing initial event: {}", event);
             processCDCEvent(event);
+            eventsSent++;
         }
-        
+        log.info("Sent {} INSERT events via WebSocket for initial snapshot", eventsSent);
+
         lastSourceSnapshot = initialSnapshot;
-        
+
         // Start polling for changes every 2 seconds
         executorService.scheduleAtFixedRate(this::pollForChanges, 2, 2, TimeUnit.SECONDS);
+        log.info("Started polling for changes every 2 seconds");
     }
 
     public void stopStreaming() {
@@ -228,7 +233,11 @@ public class CDCClientService {
         
         // Send event via WebSocket
         if (webSocketService != null) {
+            log.debug("Broadcasting CDC event via WebSocket: type={}, order_id={}", 
+                event.getEventType(), event.getAfterData().get("order_id"));
             webSocketService.broadcast("cdcEvent", event);
+        } else {
+            log.error("WebSocketService is NULL! Cannot broadcast CDC event!");
         }
     }
 
