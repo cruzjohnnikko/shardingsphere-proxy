@@ -1,0 +1,25 @@
+################################################################################
+# ShardingSphere Proxy Configuration for Database Migration
+# Use Case: Migrate existing source_db to target_db with near-zero downtime
+################################################################################
+
+databaseName: migration_db
+
+dataSources:
+  # Source Database (Existing Production Database)
+  source_ds:
+    url: jdbc:postgresql://localhost:5435/source_db?serverTimezone=UTC&useSSL=false
+    username: postgres
+    password: postgres
+    connectionTimeoutMilliseconds: 30000
+    idleTimeoutMilliseconds: 60000
+    maxLifetimeMilliseconds: 1800000
+    maxPoolSize: 50
+    minPoolSize: 1
+
+# Use SINGLE rules to expose all tables from source database
+rules:
+- !SINGLE
+  tables:
+    - "*.*"
+

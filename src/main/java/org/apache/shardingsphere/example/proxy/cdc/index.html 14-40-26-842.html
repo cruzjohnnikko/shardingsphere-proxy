@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShardingSphere CDC Monitor</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1>🔄 ShardingSphere CDC Monitor</h1>
+                    <p class="subtitle">Real-time Change Data Capture Dashboard</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <div class="tab-nav">
+            <button class="tab-btn active" data-tab="dashboard">📊 Dashboard</button>
+            <button class="tab-btn" data-tab="comparison">🔍 Data Comparison</button>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboardTab" class="tab-content active">
+
+        <!-- Connection Status -->
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">CDC Status:</span>
+                <span id="cdcStatus" class="status-badge disconnected">Disconnected</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Generator:</span>
+                <span id="generatorStatus" class="status-badge stopped">Stopped</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">WebSocket:</span>
+                <span id="wsStatus" class="status-badge disconnected">Disconnected</span>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="control-section">
+                <h2>CDC Controls</h2>
+                <div class="button-group">
+                    <button id="connectBtn" class="btn btn-primary">Connect</button>
+                    <button id="startStreamingBtn" class="btn btn-success" disabled>Start Streaming</button>
+                    <button id="stopBtn" class="btn btn-danger" disabled>Stop</button>
+                </div>
+                <div class="form-group" style="margin-top: 15px;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <button id="resetBtn" class="btn btn-secondary">Reset Stats</button>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="clearDataCheckbox" style="cursor: pointer;">
+                            <span>Clear source DB</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="clearTargetCheckbox" style="cursor: pointer;">
+                            <span>Clear target DB</span>
+                        </label>
+                        <span id="recordCountDisplay" class="status-badge" style="margin-left: auto;">Source: <span id="recordCount">...</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h2>Data Generator</h2>
+                <div class="form-group">
+                    <label for="operationType">Operation Type:</label>
+                    <select id="operationType" class="form-control">
+                        <option value="MIXED">Mixed (60% Insert, 30% Update, 10% Delete)</option>
+                        <option value="INSERT">Insert Only</option>
+                        <option value="UPDATE">Update Only</option>
+                        <option value="DELETE">Delete Only</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="interval">Interval (ms):</label>
+                    <input type="number" id="interval" class="form-control" value="1000" min="100" max="10000">
+                </div>
+                <div class="button-group">
+                    <button id="startGeneratorBtn" class="btn btn-primary">Start Generator</button>
+                    <button id="stopGeneratorBtn" class="btn btn-danger" disabled>Stop Generator</button>
+                </div>
+                <div class="form-group">
+                    <h3>Manual Insert</h3>
+                    <input type="number" id="userId" class="form-control" placeholder="User ID" value="1">
+                    <input type="text" id="orderStatus" class="form-control" placeholder="Status" value="pending">
+                    <button id="manualInsertBtn" class="btn btn-secondary">Insert Order</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-content">
+                    <div class="stat-label">Total Events</div>
+                    <div class="stat-value" id="totalEvents">0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">➕</div>
+                <div class="stat-content">
+                    <div class="stat-label">Inserts</div>
+                    <div class="stat-value" id="insertCount">0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✏️</div>
+                <div class="stat-content">
+                    <div class="stat-label">Updates</div>
+                    <div class="stat-value" id="updateCount">0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🗑️</div>
+                <div class="stat-content">
+                    <div class="stat-label">Deletes</div>
+                    <div class="stat-value" id="deleteCount">0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⚡</div>
+                <div class="stat-content">
+                    <div class="stat-label">Events/sec</div>
+                    <div class="stat-value" id="eventsPerSecond">0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⏱️</div>
+                <div class="stat-content">
+                    <div class="stat-label">Uptime</div>
+                    <div class="stat-value" id="uptime">0s</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Events Log -->
+        <div class="events-section">
+            <h2>Recent Events <span id="eventCount">(0)</span></h2>
+            <div class="events-container" id="eventsContainer">
+                <div class="no-events">No events yet. Start CDC streaming to see events.</div>
+            </div>
+        </div>
+
+        <!-- System Messages -->
+        <div class="messages-section">
+            <h2>System Messages</h2>
+            <div class="messages-container" id="messagesContainer">
+                <div class="message info">System ready. Click "Connect" to start.</div>
+            </div>
+        </div>
+
+        </div><!-- End Dashboard Tab -->
+
+        <!-- Data Comparison Tab -->
+        <div id="comparisonTab" class="tab-content">
+            
+            <!-- Summary Statistics -->
+            <div class="summary-stats">
+                <div class="summary-stat-item">
+                    <div class="label">Source Records</div>
+                    <div class="value" id="sourceRecordCount">0</div>
+                </div>
+                <div class="summary-stat-item">
+                    <div class="label">Target Records</div>
+                    <div class="value" id="targetRecordCount">0</div>
+                </div>
+                <div class="summary-stat-item">
+                    <div class="label">Unsynced Records</div>
+                    <div class="value" id="unsyncedRecordCount">0</div>
+                </div>
+                <div class="summary-stat-item">
+                    <div class="label">CDC Events</div>
+                    <div class="value" id="totalEventsCaptured">0</div>
+                </div>
+                <div class="summary-stat-item">
+                    <div class="label">CDC Status</div>
+                    <div class="value status-indicator not-running" id="cdcJobStatus">Not Running</div>
+                </div>
+            </div>
+
+            <!-- Data Tables -->
+            <div class="comparison-container">
+                <div class="comparison-panel">
+                    <h2>Source Database</h2>
+                        <div class="data-table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>User ID</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sourceDataTable">
+                                    <tr><td colspan="3">Loading source data...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                <div class="comparison-panel">
+                    <h2>Target Database</h2>
+                        <div class="data-table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>User ID</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="targetDataTable">
+                                    <tr><td colspan="3">Loading target data...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CDC Events Monitoring Section -->
+            <div style="margin-top: 20px;">
+                <h2>📊 CDC Events Monitoring</h2>
+                <div class="comparison-panel" style="width: 100%;">
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Order ID</th>
+                                    <th>User ID</th>
+                                    <th>Status (Before/After)</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cdcEventsTable">
+                                <tr><td colspan="5">No CDC events captured yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- End Data Comparison Tab -->
+
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
+

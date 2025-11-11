@@ -5,17 +5,20 @@ mode:
     props:
       namespace: governance_ds
       server-lists: localhost:2181
+      retryIntervalMilliseconds: 500
+      timeToLiveSeconds: 60
+      maxRetries: 3
+      operationTimeoutMilliseconds: 5000
 
 authority:
   users:
     - user: root@%
-      password: ${SHARDINGSPHERE_PROXY_PASSWORD}
+      password: root
   privilege:
     type: ALL_PERMITTED
 
 props:
   proxy-frontend-database-protocol-type: PostgreSQL
-  # Add this line to enable detailed SQL logging
   sql-show: true
-  port: 3308 # Temporary port to verify config loading - CHANGED FOR TESTING
-  # This is a unique comment to check if this specific global.yaml is loaded
+  proxy-default-port: 3308
+  cdc-server-port: 33071

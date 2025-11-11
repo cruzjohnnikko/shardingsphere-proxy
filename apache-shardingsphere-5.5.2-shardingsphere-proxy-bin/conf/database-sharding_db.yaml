@@ -1,0 +1,17 @@
+databaseName: sharding_db
+
+dataSources:
+  ds_0:
+    url: jdbc:postgresql://localhost:5432/postgres?serverTimezone=UTC&useSSL=false
+    username: postgres
+    password: postgres
+    connectionTimeoutMilliseconds: 30000
+    idleTimeoutMilliseconds: 60000
+    maxLifetimeMilliseconds: 1800000
+    maxPoolSize: 50
+    minPoolSize: 1
+
+rules:
+- !SINGLE
+  tables:
+    - "*.*"
