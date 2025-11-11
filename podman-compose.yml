@@ -1,23 +1,89 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:13
-    container_name: postgres_cdc_demo
+  # Primary PostgreSQL (Write Database)
+  postgres_write:
+    image: postgres:15
+    container_name: postgres_write
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
     ports:
       - "5432:5432"
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_write_data:/var/lib/postgresql/data
     command: >
+      postgres
       -c wal_level=logical
       -c max_wal_senders=10
       -c max_replication_slots=10
-      -c wal_sender_timeout=0
-      -c max_connections=600
+    networks:
+      - cdc_network
 
-  zookeeper:
-    image: zookeeper:3.7
-    container_name: zookeeper_cdc_demo
+  # Read Replica PostgreSQL (Read Database)
+  postgres_read:
+    image: postgres:15
+    container_name: postgres_read
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
     ports:
-      - "2181:2181"
+      - "5433:5432"
+    volumes:
+      - postgres_read_data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c wal_level=logical
+      -c max_wal_senders=10
+      -c max_replication_slots=10
+    networks:
+      - cdc_network
+    depends_on:
+      - postgres_write
+
+  # Target Database for CDC (separate from read-write)
+  postgres_target:
+    image: postgres:15
+    container_name: postgres_target
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: target_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_target_data:/var/lib/postgresql/data
+    networks:
+      - cdc_network
+
+  # Source Database for Migration (simulates existing production DB)
+  postgres_source:
+    image: postgres:15
+    container_name: postgres_source
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: source_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_source_data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c wal_level=logical
+      -c max_wal_senders=10
+      -c max_replication_slots=10
+    networks:
+      - cdc_network
+
+volumes:
+  postgres_write_data:
+  postgres_read_data:
+  postgres_target_data:
+  postgres_source_data:
+
+networks:
+  cdc_network:
+    driver: bridge

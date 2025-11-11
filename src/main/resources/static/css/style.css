@@ -532,12 +532,21 @@ header h1 {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.comparison-panel h2 {
+.comparison-panel h2, .comparison-panel h3 {
     color: #667eea;
     margin-top: 0;
     border-bottom: 2px solid #667eea;
     padding-bottom: 10px;
     margin-bottom: 15px;
+}
+
+.record-count {
+    background: #f0f0f0;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    color: #667eea;
+    font-weight: 600;
 }
 
 .data-table-container {

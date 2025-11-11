@@ -24,7 +24,8 @@
         <!-- Tab Navigation -->
         <div class="tab-nav">
             <button class="tab-btn active" data-tab="dashboard">📊 Dashboard</button>
-            <button class="tab-btn" data-tab="comparison">🔍 Data Comparison</button>
+            <button class="tab-btn" data-tab="replication">🔄 CDC Replication & Migration</button>
+            <button class="tab-btn" data-tab="readwrite">📚 Read-Write Splitting</button>
         </div>
 
         <!-- Dashboard Tab -->
@@ -48,27 +49,11 @@
 
         <!-- Control Panel -->
         <div class="control-panel">
-            <div class="control-section">
-                <h2>CDC Controls</h2>
-                <div class="button-group">
-                    <button id="connectBtn" class="btn btn-primary">Connect</button>
-                    <button id="startStreamingBtn" class="btn btn-success" disabled>Start Streaming</button>
-                    <button id="stopBtn" class="btn btn-danger" disabled>Stop</button>
-                </div>
-                <div class="form-group" style="margin-top: 15px;">
-                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                        <button id="resetBtn" class="btn btn-secondary">Reset Stats</button>
-                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none;">
-                            <input type="checkbox" id="clearDataCheckbox" style="cursor: pointer;">
-                            <span>Clear source DB</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none;">
-                            <input type="checkbox" id="clearTargetCheckbox" style="cursor: pointer;">
-                            <span>Clear target DB</span>
-                        </label>
-                        <span id="recordCountDisplay" class="status-badge" style="margin-left: auto;">Source: <span id="recordCount">...</span></span>
-                    </div>
-                </div>
+            <div class="control-section" style="text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; margin-bottom: 20px;">
+                <h2 style="margin: 0; font-size: 18px;">📊 Dashboard: Monitor CDC Events & Generate Data</h2>
+                <p style="margin: 10px 0 0 0; font-size: 13px; opacity: 0.9;">
+                    Use the "🔄 CDC Replication & Migration" tab to start/stop CDC streams and clear databases
+                </p>
             </div>
 
             <div class="control-section">
@@ -163,22 +148,108 @@
 
         </div><!-- End Dashboard Tab -->
 
-        <!-- Data Comparison Tab -->
-        <div id="comparisonTab" class="tab-content">
-            
+        <!-- CDC Replication & Migration Tab (Merged) -->
+        <div id="replicationTab" class="tab-content">
+            <h2>🔄 CDC Replication & Migration</h2>
+            <p style="color: #666; margin-bottom: 20px;">
+                This demonstrates multi-source CDC replication where both ShardingSphere DB and Source DB stream changes to the same Target DB.
+            </p>
+
+            <!-- Architecture Diagram -->
+            <div class="comparison-panel" style="margin-bottom: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h3 style="color: white; border-bottom-color: rgba(255,255,255,0.3);">📐 Multi-Source CDC Architecture</h3>
+                
+                <!-- Simplified Visual Flow -->
+                <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 30px 20px; margin: 20px 0;">
+                    <div style="display: flex; align-items: center; justify-content: space-around; flex-wrap: wrap; gap: 20px;">
+                        
+                        <!-- Source 1: ShardingSphere DB -->
+                        <div style="flex: 1; min-width: 180px;">
+                            <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); text-align: center;">
+                                <div style="font-size: 32px; margin-bottom: 10px;">🔄</div>
+                                <div style="font-weight: bold; font-size: 15px; margin-bottom: 8px;">ShardingSphere DB</div>
+                                <div style="font-size: 12px; opacity: 0.9; background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 4px; margin: 5px 0;">sharding_db</div>
+                                <div style="font-size: 11px; opacity: 0.8;">via Proxy: 3308</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Arrow 1 -->
+                        <div style="flex: 0 0 60px; text-align: center;">
+                            <div style="font-size: 28px; color: #4ade80; text-shadow: 0 2px 10px rgba(74, 222, 128, 0.5);">⟹</div>
+                            <div style="font-size: 10px; margin-top: 5px; color: #4ade80;">CDC Stream</div>
+                        </div>
+                        
+                        <!-- Target DB -->
+                        <div style="flex: 1; min-width: 180px;">
+                            <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 25px; border-radius: 12px; box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4); text-align: center; border: 3px solid #4ade80;">
+                                <div style="font-size: 36px; margin-bottom: 10px;">🎯</div>
+                                <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">Target DB</div>
+                                <div style="font-size: 12px; opacity: 0.9; background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 4px; margin: 5px 0;">target_db</div>
+                                <div style="font-size: 11px; opacity: 0.8;">Direct: 5432</div>
+                                <div style="margin-top: 12px; font-size: 11px; background: rgba(251, 191, 36, 0.4); padding: 6px; border-radius: 6px;">
+                                    ✅ Multi-Source CDC Destination
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Arrow 2 -->
+                        <div style="flex: 0 0 60px; text-align: center;">
+                            <div style="font-size: 28px; color: #4ade80; text-shadow: 0 2px 10px rgba(74, 222, 128, 0.5);">⟸</div>
+                            <div style="font-size: 10px; margin-top: 5px; color: #4ade80;">CDC Stream</div>
+                        </div>
+                        
+                        <!-- Source 2: Migration Source DB -->
+                        <div style="flex: 1; min-width: 180px;">
+                            <div style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); text-align: center;">
+                                <div style="font-size: 32px; margin-bottom: 10px;">📦</div>
+                                <div style="font-weight: bold; font-size: 15px; margin-bottom: 8px;">Source DB</div>
+                                <div style="font-size: 12px; opacity: 0.9; background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 4px; margin: 5px 0;">source_db</div>
+                                <div style="font-size: 11px; opacity: 0.8;">Direct: 5435</div>
+                                <div style="font-size: 10px; margin-top: 8px; opacity: 0.8;">Migration Demo</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Explanation Box -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;">
+                    <div style="background: rgba(59, 130, 246, 0.2); padding: 15px; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                        <div style="font-weight: bold; margin-bottom: 8px;">💡 What is Multi-Source CDC?</div>
+                        <div style="font-size: 12px; line-height: 1.6;">
+                            Multiple databases stream their changes to a single target database in real-time. Perfect for:
+                            <ul style="margin: 10px 0 0 20px; padding: 0;">
+                                <li>Database consolidation</li>
+                                <li>Zero-downtime migrations</li>
+                                <li>Real-time reporting from multiple sources</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div style="background: rgba(16, 185, 129, 0.2); padding: 15px; border-radius: 8px; border-left: 4px solid #10b981;">
+                        <div style="font-weight: bold; margin-bottom: 8px;">🚀 Try It Out!</div>
+                        <div style="font-size: 12px; line-height: 1.6;">
+                            <ol style="margin: 0; padding: 0 0 0 20px;">
+                                <li>Generate data in ShardingSphere DB or Source DB</li>
+                                <li>Start CDC streaming</li>
+                                <li>Watch Target DB receive changes from both sources!</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Summary Statistics -->
             <div class="summary-stats">
                 <div class="summary-stat-item">
-                    <div class="label">Source Records</div>
+                    <div class="label">ShardingSphere DB</div>
                     <div class="value" id="sourceRecordCount">0</div>
                 </div>
                 <div class="summary-stat-item">
-                    <div class="label">Target Records</div>
-                    <div class="value" id="targetRecordCount">0</div>
+                    <div class="label">Source DB (Migration)</div>
+                    <div class="value" id="migrationSourceCount">0</div>
                 </div>
                 <div class="summary-stat-item">
-                    <div class="label">Unsynced Records</div>
-                    <div class="value" id="unsyncedRecordCount">0</div>
+                    <div class="label">Target DB (Total)</div>
+                    <div class="value" id="targetRecordCount">0</div>
                 </div>
                 <div class="summary-stat-item">
                     <div class="label">CDC Events</div>
@@ -190,48 +261,144 @@
                 </div>
             </div>
 
-            <!-- Data Tables -->
-            <div class="comparison-container">
+            <!-- Three Database Tables Side by Side -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 30px;">
+                <!-- ShardingSphere Database -->
                 <div class="comparison-panel">
-                    <h2>Source Database</h2>
-                        <div class="data-table-container">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Order ID</th>
-                                        <th>User ID</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="sourceDataTable">
-                                    <tr><td colspan="3">Loading source data...</td></tr>
-                                </tbody>
-                            </table>
+                    <h3 style="font-size: 16px;">
+                        🔄 ShardingSphere DB
+                        <span class="record-count" id="sourceBadge">0</span>
+                    </h3>
+                    <p style="color: #666; font-size: 12px; margin-bottom: 15px;">
+                        sharding_db via Proxy (3308)
+                    </p>
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>User ID</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sourceDataTable">
+                                <tr><td colspan="3">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <button id="clearShardingSphereBtn" class="btn btn-danger" style="width: 100%; margin-top: 15px; font-size: 13px;">
+                        🗑️ Clear ShardingSphere DB
+                    </button>
+                </div>
+
+                <!-- Source Database (Migration) -->
+                <div class="comparison-panel">
+                    <h3 style="font-size: 16px;">
+                        📦 Source DB (Migration)
+                        <span class="record-count" id="migrationSourceBadge">0</span>
+                    </h3>
+                    <p style="color: #666; font-size: 12px; margin-bottom: 15px;">
+                        source_db (5435)
+                    </p>
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>User ID</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="migrationSourceTable">
+                                <tr><td colspan="3">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <button id="clearMigrationSourceBtn" class="btn btn-danger" style="width: 100%; margin-top: 15px; font-size: 13px;">
+                        🗑️ Clear Source DB
+                    </button>
+                </div>
+
+                <!-- Target Database -->
+                <div class="comparison-panel">
+                    <h3 style="font-size: 16px;">
+                        🎯 Target DB
+                        <span class="record-count" id="targetBadge">0</span>
+                    </h3>
+                    <p style="color: #666; font-size: 12px; margin-bottom: 15px;">
+                        target_db (5432) - Multi-source
+                    </p>
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>User ID</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="targetDataTable">
+                                <tr><td colspan="3">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <button id="clearTargetBtn" class="btn btn-danger" style="width: 100%; margin-top: 15px; font-size: 13px;">
+                        🗑️ Clear Target DB
+                    </button>
+                </div>
+            </div>
+
+            <!-- CDC Streaming Status Bar -->
+            <div class="comparison-panel" style="margin-top: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="flex: 1;">
+                        <h3 style="color: white; border: none; margin: 0;">CDC Streaming Status</h3>
+                        <div style="margin-top: 10px; font-size: 14px; opacity: 0.9;">
+                            <span id="cdcStreamingStatusText">⏸️ Not streaming</span>
                         </div>
                     </div>
-
-                <div class="comparison-panel">
-                    <h2>Target Database</h2>
-                        <div class="data-table-container">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Order ID</th>
-                                        <th>User ID</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="targetDataTable">
-                                    <tr><td colspan="3">Loading target data...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
+                    <div>
+                        <button id="stopStreamingBtn" class="btn" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4);" disabled>
+                            ⏸️ Stop CDC Stream
+                        </button>
                     </div>
                 </div>
             </div>
 
+            <!-- Control Buttons -->
+            <div class="comparison-panel" style="margin-top: 20px;">
+                <h3>Replication Controls</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 15px;">
+                    <div>
+                        <h4 style="margin-bottom: 10px; color: #667eea;">ShardingSphere CDC</h4>
+                        <button id="startStreamingBtn" class="btn btn-success" style="width: 100%;">
+                            ▶️ Start CDC Stream
+                        </button>
+                    </div>
+                    <div>
+                        <h4 style="margin-bottom: 10px; color: #8b5cf6;">Migration CDC</h4>
+                        <button id="migrationSetupBtn" class="btn btn-primary" style="width: 100%; margin-bottom: 10px;">
+                            🔧 Setup Source DB
+                        </button>
+                        <button id="migrationStartBtn" class="btn btn-success" style="width: 100%;">
+                            ▶️ Start Migration CDC
+                        </button>
+                    </div>
+                    <div>
+                        <h4 style="margin-bottom: 10px; color: #10b981;">Verification</h4>
+                        <button id="migrationVerifyBtn" class="btn btn-info" style="width: 100%; margin-bottom: 10px;">
+                            ✓ Verify Sync
+                        </button>
+                        <button id="migrationRefreshBtn" class="btn" style="width: 100%;">
+                            🔄 Refresh All
+                        </button>
+                    </div>
+                </div>
+                <div id="migrationFeedback" style="margin-top: 15px; padding: 10px; border-radius: 8px; text-align: center; font-weight: 600;"></div>
+            </div>
+
             <!-- CDC Events Monitoring Section -->
-            <div style="margin-top: 20px;">
+            <div style="margin-top: 30px;">
                 <h2>📊 CDC Events Monitoring</h2>
                 <div class="comparison-panel" style="width: 100%;">
                     <div class="data-table-container">
@@ -239,25 +406,168 @@
                             <thead>
                                 <tr>
                                     <th>Type</th>
+                                    <th>Database</th>
                                     <th>Order ID</th>
                                     <th>User ID</th>
-                                    <th>Status (Before/After)</th>
+                                    <th>Status</th>
                                     <th>Time</th>
                                 </tr>
                             </thead>
                             <tbody id="cdcEventsTable">
-                                <tr><td colspan="5">No CDC events captured yet.</td></tr>
+                                <tr><td colspan="6">No CDC events captured yet.</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-        </div><!-- End Data Comparison Tab -->
+        </div><!-- End CDC Replication & Migration Tab -->
+
+        <!-- Read-Write Splitting Tab -->
+        <div class="tab-content" id="readwriteTab">
+            <h2>📊 Read-Write Splitting Monitor</h2>
+            
+            <!-- Replication Status Card -->
+            <div class="comparison-panel" style="margin-bottom: 20px;">
+                <h3>Replication Status</h3>
+                <div class="summary-stats">
+                    <div class="summary-stat-item">
+                        <div class="label">Replication</div>
+                        <div class="value" id="rwReplicationStatus">Disabled</div>
+                    </div>
+                    <div class="summary-stat-item">
+                        <div class="label">Write DB</div>
+                        <div class="value" id="rwWriteCount">0</div>
+                    </div>
+                    <div class="summary-stat-item">
+                        <div class="label">Read DB</div>
+                        <div class="value" id="rwReadCount">0</div>
+                    </div>
+                    <div class="summary-stat-item">
+                        <div class="label">Sync Status</div>
+                        <div class="value" id="rwSyncStatus">Out of Sync</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Database Comparison -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                
+                <!-- Write Database Table -->
+                <div class="comparison-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3>✍️ Write Database (Primary)</h3>
+                        <span class="record-count">Records: <span id="writeDbCount">0</span></span>
+                    </div>
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>User ID</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="writeDbTable">
+                                <tr><td colspan="3">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Read Database Table -->
+                <div class="comparison-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3>📖 Read Database (Replica)</h3>
+                        <span class="record-count">Records: <span id="readDbCount">0</span></span>
+                    </div>
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>User ID</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="readDbTable">
+                                <tr><td colspan="3">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Manual Insert Section -->
+            <div class="comparison-panel" style="margin-top: 20px;">
+                <h3>✍️ Manual Insert to Write Database</h3>
+                <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+                    Insert a record directly into the Write DB. Enable replication to automatically sync to Read DB, 
+                    or use "Manual Sync Now" to sync once.
+                </p>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <input type="number" id="rwUserId" class="form-control" placeholder="User ID" value="1" style="width: 120px;">
+                    <input type="text" id="rwOrderStatus" class="form-control" placeholder="Status" value="pending" style="width: 150px;">
+                    <button id="rwInsertBtn" class="btn btn-success">Insert to Write DB</button>
+                    <span id="rwInsertFeedback" style="margin-left: 10px; font-weight: bold;"></span>
+                </div>
+            </div>
+
+            <!-- Search from Read DB Section -->
+            <div class="comparison-panel" style="margin-top: 20px;">
+                <h3>🔍 Search from Read Database (Read-Only Demo)</h3>
+                <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+                    This search queries <strong>ONLY the Read Database</strong> to demonstrate read-write splitting. 
+                    Search by Order ID or User ID.
+                </p>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
+                    <select id="rwSearchType" class="form-control" style="width: 150px;">
+                        <option value="order_id">Search by Order ID</option>
+                        <option value="user_id">Search by User ID</option>
+                    </select>
+                    <input type="number" id="rwSearchValue" class="form-control" placeholder="Enter value" style="width: 150px;">
+                    <button id="rwSearchBtn" class="btn btn-info">🔍 Search Read DB</button>
+                    <button id="rwClearSearchBtn" class="btn btn-secondary">Clear</button>
+                    <span id="rwSearchFeedback" style="margin-left: 10px; font-weight: bold;"></span>
+                </div>
+                
+                <!-- Search Results -->
+                <div id="rwSearchResults" style="display: none; background: #f0f9ff; border: 2px solid #3b82f6; border-radius: 8px; padding: 15px; margin-top: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="margin: 0; color: #1e40af;">📖 Results from Read Database</h4>
+                        <span id="rwSearchCount" style="background: #3b82f6; color: white; padding: 4px 12px; border-radius: 12px; font-size: 14px;">0 found</span>
+                    </div>
+                    <div class="data-table-container" style="max-height: 300px;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>User ID</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rwSearchTable">
+                                <tr><td colspan="3" style="text-align: center;">No results</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Replication Controls -->
+            <div style="margin-top: 20px; text-align: center;">
+                <button id="rwEnableBtn" class="btn btn-primary" style="margin: 5px;">Enable Replication</button>
+                <button id="rwDisableBtn" class="btn btn-secondary" style="margin: 5px;">Disable Replication</button>
+                <button id="rwSyncBtn" class="btn btn-info" style="margin: 5px;">Manual Sync Now</button>
+                <button id="rwSwitchBtn" class="btn btn-warning" style="margin: 5px;">Switch Databases (Read ↔ Write)</button>
+                <button id="rwRefreshBtn" class="btn" style="margin: 5px;">🔄 Refresh</button>
+            </div>
+        </div><!-- End Read-Write Splitting Tab -->
 
     </div>
 
-    <script src="js/app.js?v=8"></script>
+    <script src="js/app.js?v=11"></script>
 </body>
 </html>
 

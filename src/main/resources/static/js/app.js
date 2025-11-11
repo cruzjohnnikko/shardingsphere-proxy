@@ -32,6 +32,7 @@ const uptimeEl = document.getElementById('uptime');
 // Button Elements
 const connectBtn = document.getElementById('connectBtn');
 const startStreamingBtn = document.getElementById('startStreamingBtn');
+const stopStreamingBtn = document.getElementById('stopStreamingBtn');
 const stopBtn = document.getElementById('stopBtn');
 const resetBtn = document.getElementById('resetBtn');
 const startGeneratorBtn = document.getElementById('startGeneratorBtn');
@@ -55,17 +56,68 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(pollStatus, 2000);
     setInterval(updateRecordCount, 3000); // Update record count every 3 seconds
     setInterval(updateDashboardStats, 3000); // Update dashboard stats every 3 seconds
+    // Don't call refreshReadWriteData here - it will be called when user switches to that tab
 });
 
 // Setup Event Listeners
 function setupEventListeners() {
-    connectBtn.addEventListener('click', connect);
-    startStreamingBtn.addEventListener('click', startStreaming);
-    stopBtn.addEventListener('click', stop);
-    resetBtn.addEventListener('click', resetStatistics);
-    startGeneratorBtn.addEventListener('click', startGenerator);
-    stopGeneratorBtn.addEventListener('click', stopGenerator);
-    manualInsertBtn.addEventListener('click', manualInsert);
+    if (connectBtn) connectBtn.addEventListener('click', connect);
+    if (startStreamingBtn) startStreamingBtn.addEventListener('click', startStreaming);
+    if (stopStreamingBtn) stopStreamingBtn.addEventListener('click', stop);
+    if (stopBtn) stopBtn.addEventListener('click', stop);
+    if (resetBtn) resetBtn.addEventListener('click', resetStatistics);
+    if (startGeneratorBtn) startGeneratorBtn.addEventListener('click', startGenerator);
+    if (stopGeneratorBtn) stopGeneratorBtn.addEventListener('click', stopGenerator);
+    if (manualInsertBtn) manualInsertBtn.addEventListener('click', manualInsert);
+    
+    // Read-Write Splitting Event Listeners
+    const enableReplicationBtn = document.getElementById('enableReplicationBtn');
+    const disableReplicationBtn = document.getElementById('disableReplicationBtn');
+    const syncReplicationBtn = document.getElementById('syncReplicationBtn');
+    const switchDatabasesBtn = document.getElementById('switchDatabasesBtn');
+    const rwEnableBtn = document.getElementById('rwEnableBtn');
+    const rwDisableBtn = document.getElementById('rwDisableBtn');
+    const rwSyncBtn = document.getElementById('rwSyncBtn');
+    const rwSwitchBtn = document.getElementById('rwSwitchBtn');
+    const rwRefreshBtn = document.getElementById('rwRefreshBtn');
+    const rwInsertBtn = document.getElementById('rwInsertBtn');
+    const rwSearchBtn = document.getElementById('rwSearchBtn');
+    const rwClearSearchBtn = document.getElementById('rwClearSearchBtn');
+    
+    if (enableReplicationBtn) enableReplicationBtn.addEventListener('click', enableReplication);
+    if (disableReplicationBtn) disableReplicationBtn.addEventListener('click', disableReplication);
+    if (syncReplicationBtn) syncReplicationBtn.addEventListener('click', syncReplication);
+    if (switchDatabasesBtn) switchDatabasesBtn.addEventListener('click', switchDatabases);
+    if (rwEnableBtn) rwEnableBtn.addEventListener('click', enableReplication);
+    if (rwDisableBtn) rwDisableBtn.addEventListener('click', disableReplication);
+    if (rwSyncBtn) rwSyncBtn.addEventListener('click', syncReplication);
+    if (rwSwitchBtn) rwSwitchBtn.addEventListener('click', switchDatabases);
+    if (rwRefreshBtn) rwRefreshBtn.addEventListener('click', refreshReadWriteData);
+    if (rwInsertBtn) rwInsertBtn.addEventListener('click', insertToWriteDb);
+    if (rwSearchBtn) rwSearchBtn.addEventListener('click', searchReadDatabase);
+    if (rwClearSearchBtn) rwClearSearchBtn.addEventListener('click', clearSearch);
+    
+    // Migration Event Listeners
+    const migrationSetupBtn = document.getElementById('migrationSetupBtn');
+    const migrationStartBtn = document.getElementById('migrationStartBtn');
+    const migrationStopBtn = document.getElementById('migrationStopBtn');
+    const migrationVerifyBtn = document.getElementById('migrationVerifyBtn');
+    const migrationRefreshBtn = document.getElementById('migrationRefreshBtn');
+    
+    if (migrationSetupBtn) migrationSetupBtn.addEventListener('click', setupMigrationSource);
+    if (migrationStartBtn) migrationStartBtn.addEventListener('click', startMigration);
+    if (migrationStopBtn) migrationStopBtn.addEventListener('click', stopMigration);
+    if (migrationVerifyBtn) migrationVerifyBtn.addEventListener('click', verifyMigration);
+    if (migrationRefreshBtn) migrationRefreshBtn.addEventListener('click', refreshMigrationData);
+    
+    // Clear Database Button Event Listeners
+    const clearShardingSphereBtn = document.getElementById('clearShardingSphereBtn');
+    const clearMigrationSourceBtn = document.getElementById('clearMigrationSourceBtn');
+    const clearTargetBtn = document.getElementById('clearTargetBtn');
+    
+    if (clearShardingSphereBtn) clearShardingSphereBtn.addEventListener('click', clearShardingSphereDb);
+    if (clearMigrationSourceBtn) clearMigrationSourceBtn.addEventListener('click', clearMigrationSourceDb);
+    if (clearTargetBtn) clearTargetBtn.addEventListener('click', clearTargetDb);
 }
 
 // WebSocket Functions
@@ -167,69 +219,96 @@ function updateWebSocketStatus(connected) {
 // API Functions
 async function connect() {
     try {
-        connectBtn.disabled = true;
+        if (connectBtn) connectBtn.disabled = true;
+        
+        showNotification('⏳ Connecting to ShardingSphere Proxy...', 'info');
+        
         const response = await fetch(`${API_BASE}/connect`, { method: 'POST' });
         const result = await response.json();
         
         if (result.success) {
             addMessage(result.message, 'success');
-            startStreamingBtn.disabled = false;
-            stopBtn.disabled = true;
+            showNotification('✅ ' + result.message, 'success');
+            
+            if (startStreamingBtn) startStreamingBtn.disabled = false;
+            if (stopBtn) stopBtn.disabled = true;
         } else {
             addMessage(result.message, 'error');
-            connectBtn.disabled = false;
-            startStreamingBtn.disabled = true;
-            stopBtn.disabled = true;
+            showNotification('❌ ' + result.message, 'error');
+            
+            if (connectBtn) connectBtn.disabled = false;
+            if (startStreamingBtn) startStreamingBtn.disabled = true;
+            if (stopBtn) stopBtn.disabled = true;
         }
     } catch (error) {
+        console.error('Failed to connect:', error);
         addMessage('Failed to connect: ' + error.message, 'error');
-        connectBtn.disabled = false;
-        startStreamingBtn.disabled = true;
-        stopBtn.disabled = true;
+        showNotification('❌ Failed to connect: ' + error.message, 'error');
+        
+        if (connectBtn) connectBtn.disabled = false;
+        if (startStreamingBtn) startStreamingBtn.disabled = true;
+        if (stopBtn) stopBtn.disabled = true;
     }
 }
 
 async function startStreaming() {
     try {
-        startStreamingBtn.disabled = true;
-        stopBtn.disabled = false;
-        connectBtn.disabled = true;
+        if (startStreamingBtn) startStreamingBtn.disabled = true;
+        if (stopBtn) stopBtn.disabled = false;
+        if (connectBtn) connectBtn.disabled = true;
         
-        const response = await fetch(`${API_BASE}/startStreaming`, { method: 'POST' });
+        showNotification('⏳ Starting CDC streaming from ShardingSphere DB...', 'info');
+        
+        const response = await fetch(`${API_BASE}/startStreaming?database=sharding_db&tables=t_order`, { method: 'POST' });
         const result = await response.text();
+        
         addMessage(result, 'success');
+        showNotification('✅ ' + result, 'success');
     } catch (error) {
+        console.error('Failed to start streaming:', error);
         addMessage('Failed to start streaming: ' + error.message, 'error');
-        startStreamingBtn.disabled = false;
-        stopBtn.disabled = true;
-        connectBtn.disabled = false;
+        showNotification('❌ Failed to start streaming: ' + error.message, 'error');
+        
+        if (startStreamingBtn) startStreamingBtn.disabled = false;
+        if (stopBtn) stopBtn.disabled = true;
+        if (connectBtn) connectBtn.disabled = false;
     }
 }
 
 async function stop() {
     try {
-        stopBtn.disabled = true;
-        startStreamingBtn.disabled = false;
+        if (stopStreamingBtn) stopStreamingBtn.disabled = true;
+        if (startStreamingBtn) startStreamingBtn.disabled = false;
+        
+        showNotification('⏳ Stopping CDC streaming...', 'info');
         
         const response = await fetch(`${API_BASE}/stopStreaming`, { method: 'POST' });
         const result = await response.text();
+        
         addMessage(result, 'success');
+        showNotification('✅ ' + result, 'success');
+        
+        // Re-enable the stop button after successful stop
+        if (stopStreamingBtn) stopStreamingBtn.disabled = true;
     } catch (error) {
+        console.error('Failed to stop:', error);
         addMessage('Failed to stop: ' + error.message, 'error');
-        stopBtn.disabled = false;
-        startStreamingBtn.disabled = true;
+        showNotification('❌ Failed to stop: ' + error.message, 'error');
+        
+        if (stopStreamingBtn) stopStreamingBtn.disabled = false;
+        if (startStreamingBtn) startStreamingBtn.disabled = true;
     }
 }
 
 async function resetStatistics() {
     try {
-        const clearData = clearDataCheckbox.checked;
-        const clearTarget = clearTargetCheckbox.checked;
+        const clearData = clearDataCheckbox ? clearDataCheckbox.checked : false;
+        const clearTarget = clearTargetCheckbox ? clearTargetCheckbox.checked : false;
         
         // Confirm if clearing data
         if (clearData || clearTarget) {
             let message = '⚠️ Warning: This will delete data from:\n';
-            if (clearData) message += `- Source database (${recordCountEl.textContent} records)\n`;
+            if (clearData) message += `- Source database (${recordCountEl ? recordCountEl.textContent : 'N/A'} records)\n`;
             if (clearTarget) message += '- Target database\n';
             message += '\nAre you sure you want to continue?';
             
@@ -269,13 +348,13 @@ async function updateRecordCount() {
         const result = await response.json();
         
         if (result.success) {
-            recordCountEl.textContent = result.count.toLocaleString();
+            if (recordCountEl) recordCountEl.textContent = result.count.toLocaleString();
         } else {
-            recordCountEl.textContent = 'Error';
+            if (recordCountEl) recordCountEl.textContent = 'Error';
         }
     } catch (error) {
         console.error('Failed to fetch record count:', error);
-        recordCountEl.textContent = '?';
+        if (recordCountEl) recordCountEl.textContent = '?';
     }
 }
 
@@ -418,31 +497,62 @@ async function pollStatus() {
 }
 
 function updateCDCStatus(status) {
+    if (!status) {
+        console.warn('updateCDCStatus called with undefined status');
+        return;
+    }
+    
+    const cdcStreamingStatusText = document.getElementById('cdcStreamingStatusText');
+    const stopStreamingBtn = document.getElementById('stopStreamingBtn');
+    
     if (status.streaming) {
+        if (cdcStatusEl) {
         cdcStatusEl.textContent = 'Streaming';
         cdcStatusEl.className = 'status-badge streaming';
-        // Update button states
-        startStreamingBtn.disabled = true;
-        stopBtn.disabled = false;
-        connectBtn.disabled = true;
+        }
+        // Update status text in replication tab
+        if (cdcStreamingStatusText) {
+            cdcStreamingStatusText.textContent = '✅ CDC is actively streaming changes';
+        }
+        // Update button states (with null checks for Dashboard controls that were removed)
+        if (startStreamingBtn) startStreamingBtn.disabled = true;
+        if (stopStreamingBtn) stopStreamingBtn.disabled = false;
+        if (stopBtn) stopBtn.disabled = false;
+        if (connectBtn) connectBtn.disabled = true;
     } else if (status.connected) {
+        if (cdcStatusEl) {
         cdcStatusEl.textContent = 'Connected';
         cdcStatusEl.className = 'status-badge connected';
+        }
+        // Update status text in replication tab
+        if (cdcStreamingStatusText) {
+            cdcStreamingStatusText.textContent = '⏸️ Not streaming (Connected)';
+        }
         // Update button states
-        startStreamingBtn.disabled = false;
-        stopBtn.disabled = true;
-        connectBtn.disabled = true;
+        if (startStreamingBtn) startStreamingBtn.disabled = false;
+        if (stopStreamingBtn) stopStreamingBtn.disabled = true;
+        if (stopBtn) stopBtn.disabled = true;
+        if (connectBtn) connectBtn.disabled = true;
     } else {
+        if (cdcStatusEl) {
         cdcStatusEl.textContent = 'Disconnected';
         cdcStatusEl.className = 'status-badge disconnected';
+        }
+        // Update status text in replication tab
+        if (cdcStreamingStatusText) {
+            cdcStreamingStatusText.textContent = '⏸️ Not streaming';
+        }
         // Update button states
-        startStreamingBtn.disabled = true;
-        stopBtn.disabled = true;
-        connectBtn.disabled = false;
+        if (startStreamingBtn) startStreamingBtn.disabled = true;
+        if (stopStreamingBtn) stopStreamingBtn.disabled = true;
+        if (stopBtn) stopBtn.disabled = true;
+        if (connectBtn) connectBtn.disabled = false;
     }
 }
 
 function updateGeneratorStatus(running) {
+    if (!generatorStatusEl) return;
+    
     if (running) {
         generatorStatusEl.textContent = 'Running';
         generatorStatusEl.className = 'status-badge running';
@@ -453,12 +563,12 @@ function updateGeneratorStatus(running) {
 }
 
 function updateStatistics(stats) {
-    totalEventsEl.textContent = formatNumber(stats.totalEvents);
-    insertCountEl.textContent = formatNumber(stats.insertCount);
-    updateCountEl.textContent = formatNumber(stats.updateCount);
-    deleteCountEl.textContent = formatNumber(stats.deleteCount);
-    eventsPerSecondEl.textContent = stats.eventsPerSecond.toFixed(2);
-    uptimeEl.textContent = formatUptime(stats.uptime);
+    if (totalEventsEl) totalEventsEl.textContent = formatNumber(stats.totalEvents);
+    if (insertCountEl) insertCountEl.textContent = formatNumber(stats.insertCount);
+    if (updateCountEl) updateCountEl.textContent = formatNumber(stats.updateCount);
+    if (deleteCountEl) deleteCountEl.textContent = formatNumber(stats.deleteCount);
+    if (eventsPerSecondEl) eventsPerSecondEl.textContent = stats.eventsPerSecond.toFixed(2);
+    if (uptimeEl) uptimeEl.textContent = formatUptime(stats.uptime);
 }
 
 function addEvent(event) {
@@ -564,6 +674,11 @@ function addCdcEventToTable(event) {
 }
 
 function addMessage(message, type) {
+    if (!messagesContainerEl) {
+        console.log(`[${type}] ${message}`);
+        return;
+    }
+    
     const messageEl = document.createElement('div');
     messageEl.className = `message ${type}`;
     messageEl.innerHTML = `<span class="message-time">${formatTime(Date.now())}</span>${message}`;
@@ -603,6 +718,9 @@ function formatUptime(seconds) {
 }
 
 
+// Read-Write Splitting refresh interval
+let readWriteRefreshInterval = null;
+
 // Tab Switching
 function setupTabSwitching() {
     const tabButtons = document.querySelectorAll('.tab-btn');
@@ -625,17 +743,36 @@ function setupTabSwitching() {
                 targetContent.classList.add('active');
             }
             
-            // Start/Stop comparison data refresh based on active tab
-            if (targetTab === 'comparison') {
-                fetchDataComparison(); // Load immediately
-                if (!comparisonRefreshInterval) {
-                    comparisonRefreshInterval = setInterval(fetchDataComparison, 5000);
-                }
-            } else {
+            // Clear all refresh intervals first
                 if (comparisonRefreshInterval) {
                     clearInterval(comparisonRefreshInterval);
                     comparisonRefreshInterval = null;
                 }
+            if (readWriteRefreshInterval) {
+                clearInterval(readWriteRefreshInterval);
+                readWriteRefreshInterval = null;
+            }
+            if (migrationRefreshInterval) {
+                clearInterval(migrationRefreshInterval);
+                migrationRefreshInterval = null;
+            }
+            
+            // Start appropriate refresh based on active tab
+            if (targetTab === 'replication') {
+                // Merged CDC Replication & Migration Tab - load all three databases
+                fetchDataComparison(); // Load ShardingSphere DB → Target DB
+                refreshMigrationData(); // Load Source DB (migration)
+                comparisonRefreshInterval = setInterval(() => {
+                    fetchDataComparison();
+                    refreshMigrationData();
+                }, 3000);
+            } else if (targetTab === 'readwrite') {
+                refreshReadWriteData(); // Load immediately
+                pollReplicationStatus(); // Update status immediately
+                readWriteRefreshInterval = setInterval(() => {
+                    refreshReadWriteData();
+                    pollReplicationStatus();
+                }, 3000);
             }
         });
     });
@@ -700,7 +837,16 @@ async function fetchDataComparison() {
         const sourceCount = Array.isArray(sourceRecords) ? sourceRecords.length : 0;
         const targetCount = Array.isArray(targetRecords) ? targetRecords.length : 0;
         let unsyncedCount = Math.max(0, sourceCount - targetCount);
-        document.getElementById('unsyncedRecordCount').textContent = unsyncedCount.toLocaleString();
+        
+        const unsyncedRecordCountEl = document.getElementById('unsyncedRecordCount');
+        if (unsyncedRecordCountEl) unsyncedRecordCountEl.textContent = unsyncedCount.toLocaleString();
+        
+        // Update badges for merged tab
+        const sourceBadgeEl = document.getElementById('sourceBadge');
+        if (sourceBadgeEl) sourceBadgeEl.textContent = sourceCount;
+        
+        const targetBadgeEl = document.getElementById('targetBadge');
+        if (targetBadgeEl) targetBadgeEl.textContent = targetCount;
 
         // Update CDC Job Status
         const cdcStatusResponse = await fetch(`${API_BASE}/status`);
@@ -720,8 +866,7 @@ async function fetchDataComparison() {
 
     } catch (error) {
         console.error('Error fetching data comparison:', error);
-        console.error('Error stack:', error.stack);
-        // Set defaults instead of Error
+        // Set defaults instead of Error (with null checks)
         const safeSetText = (id, defaultValue) => {
             const el = document.getElementById(id);
             if (el) el.textContent = defaultValue;
@@ -731,6 +876,8 @@ async function fetchDataComparison() {
         safeSetText('unsyncedRecordCount', '0');
         safeSetText('totalEventsCaptured', '0');
         safeSetText('cdcJobStatus', 'Not Running');
+        safeSetText('sourceBadge', '0');
+        safeSetText('targetBadge', '0');
         const statusEl = document.getElementById('cdcJobStatus');
         if (statusEl) statusEl.className = 'status-indicator not-running';
     }
@@ -858,4 +1005,785 @@ function renderCdcEventsTable(events) {
         tableBody.appendChild(row);
     });
     console.log('Table now has', tableBody.rows.length, 'rows');
+}
+
+// ========== Read-Write Splitting Functions ==========
+
+async function enableReplication() {
+    try {
+        const response = await fetch(`${API_BASE}/replication/enable`, {
+            method: 'POST'
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Replication enabled successfully!');
+            pollReplicationStatus();
+            refreshReadWriteData();
+        } else {
+            alert('❌ Error: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error enabling replication:', error);
+        alert('❌ Failed to enable replication');
+    }
+}
+
+async function disableReplication() {
+    try {
+        const response = await fetch(`${API_BASE}/replication/disable`, {
+            method: 'POST'
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Replication disabled successfully!');
+            pollReplicationStatus();
+            refreshReadWriteData();
+        } else {
+            alert('❌ Error: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error disabling replication:', error);
+        alert('❌ Failed to disable replication');
+    }
+}
+
+async function syncReplication() {
+    try {
+        const response = await fetch(`${API_BASE}/replication/sync`, {
+            method: 'POST'
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Manual sync completed!');
+            pollReplicationStatus();
+            refreshReadWriteData();
+        } else {
+            alert('❌ Error: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error syncing replication:', error);
+        alert('❌ Failed to sync');
+    }
+}
+
+async function switchDatabases() {
+    if (!confirm('Are you sure you want to switch read and write database roles?\nThis will swap their assignments.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/replication/switch`, {
+            method: 'POST'
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Database roles switched successfully!\nWrite DB ↔ Read DB');
+            pollReplicationStatus();
+            refreshReadWriteData();
+        } else {
+            alert('❌ Error: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error switching databases:', error);
+        alert('❌ Failed to switch databases');
+    }
+}
+
+async function pollReplicationStatus() {
+    try {
+        const response = await fetch(`${API_BASE}/replication/status`);
+        const status = await response.json();
+        
+        const dashboardStatus = document.getElementById('replicationStatus');
+        if (dashboardStatus) {
+            if (status.enabled) {
+                dashboardStatus.textContent = 'Enabled';
+                dashboardStatus.className = 'status-badge connected';
+            } else {
+                dashboardStatus.textContent = 'Disabled';
+                dashboardStatus.className = 'status-badge disconnected';
+            }
+        }
+        
+        const writeCountEl = document.getElementById('writeDbRecordCount');
+        const readCountEl = document.getElementById('readDbRecordCount');
+        if (writeCountEl) writeCountEl.textContent = status.writeRecordCount || 0;
+        if (readCountEl) readCountEl.textContent = status.readRecordCount || 0;
+        
+        const rwStatus = document.getElementById('rwReplicationStatus');
+        const rwWriteCount = document.getElementById('rwWriteCount');
+        const rwReadCount = document.getElementById('rwReadCount');
+        const rwSyncStatus = document.getElementById('rwSyncStatus');
+        
+        if (rwStatus) {
+            rwStatus.textContent = status.enabled ? 'Enabled ✅' : 'Disabled ❌';
+            rwStatus.style.color = status.enabled ? '#10b981' : '#ef4444';
+        }
+        if (rwWriteCount) rwWriteCount.textContent = status.writeRecordCount || 0;
+        if (rwReadCount) rwReadCount.textContent = status.readRecordCount || 0;
+        if (rwSyncStatus) {
+            if (status.inSync) {
+                rwSyncStatus.textContent = 'In Sync ✅';
+                rwSyncStatus.style.color = '#10b981';
+            } else {
+                rwSyncStatus.textContent = 'Out of Sync ⚠️';
+                rwSyncStatus.style.color = '#f59e0b';
+            }
+        }
+    } catch (error) {
+        console.error('Error polling replication status:', error);
+    }
+}
+
+async function refreshReadWriteData() {
+    try {
+        const writeResponse = await fetch(`${API_BASE}/writeData`);
+        const writeResult = await writeResponse.json();
+        
+        if (writeResult.success) {
+            renderWriteDbTable(writeResult.data || []);
+            const writeCountEl = document.getElementById('writeDbCount');
+            if (writeCountEl) writeCountEl.textContent = writeResult.data.length;
+        }
+        
+        const readResponse = await fetch(`${API_BASE}/readData`);
+        const readResult = await readResponse.json();
+        
+        if (readResult.success) {
+            renderReadDbTable(readResult.data || []);
+            const readCountEl = document.getElementById('readDbCount');
+            if (readCountEl) readCountEl.textContent = readResult.data.length;
+        }
+    } catch (error) {
+        console.error('Error refreshing read-write data:', error);
+    }
+}
+
+function renderWriteDbTable(records) {
+    const tableBody = document.getElementById('writeDbTable');
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = '';
+    
+    if (records.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #666;">No records in write database.</td></tr>';
+        return;
+    }
+    
+    records.forEach(record => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${record.order_id}</td>
+            <td>${record.user_id}</td>
+            <td>${record.status}</td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+function renderReadDbTable(records) {
+    const tableBody = document.getElementById('readDbTable');
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = '';
+    
+    if (records.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #666;">No records in read database.</td></tr>';
+        return;
+    }
+    
+    records.forEach(record => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${record.order_id}</td>
+            <td>${record.user_id}</td>
+            <td>${record.status}</td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+async function insertToWriteDb() {
+    try {
+        const userId = document.getElementById('rwUserId').value;
+        const status = document.getElementById('rwOrderStatus').value;
+        const feedbackEl = document.getElementById('rwInsertFeedback');
+        
+        if (!userId || !status) {
+            feedbackEl.textContent = '❌ Please fill in all fields';
+            feedbackEl.style.color = '#ef4444';
+            setTimeout(() => feedbackEl.textContent = '', 3000);
+            return;
+        }
+        
+        const response = await fetch(`${API_BASE}/replication/insertWrite?userId=${userId}&status=${status}`, {
+            method: 'POST'
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            feedbackEl.textContent = '✅ Inserted to Write DB!';
+            feedbackEl.style.color = '#10b981';
+            
+            // Refresh the write DB table immediately
+            refreshReadWriteData();
+            pollReplicationStatus();
+            
+            setTimeout(() => feedbackEl.textContent = '', 3000);
+        } else {
+            feedbackEl.textContent = '❌ Error: ' + result.message;
+            feedbackEl.style.color = '#ef4444';
+            setTimeout(() => feedbackEl.textContent = '', 5000);
+        }
+    } catch (error) {
+        console.error('Error inserting to write DB:', error);
+        const feedbackEl = document.getElementById('rwInsertFeedback');
+        feedbackEl.textContent = '❌ Failed to insert';
+        feedbackEl.style.color = '#ef4444';
+        setTimeout(() => feedbackEl.textContent = '', 5000);
+    }
+}
+
+async function searchReadDatabase() {
+    try {
+        const searchType = document.getElementById('rwSearchType').value;
+        const searchValue = document.getElementById('rwSearchValue').value;
+        const feedbackEl = document.getElementById('rwSearchFeedback');
+        const resultsDiv = document.getElementById('rwSearchResults');
+        
+        if (!searchValue) {
+            feedbackEl.textContent = '❌ Please enter a search value';
+            feedbackEl.style.color = '#ef4444';
+            setTimeout(() => feedbackEl.textContent = '', 3000);
+            return;
+        }
+        
+        feedbackEl.textContent = '🔍 Searching Read DB...';
+        feedbackEl.style.color = '#3b82f6';
+        
+        const response = await fetch(`${API_BASE}/replication/searchRead?${searchType}=${searchValue}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const records = result.data || [];
+            feedbackEl.textContent = `✅ Found ${records.length} record(s) in Read DB`;
+            feedbackEl.style.color = '#10b981';
+            
+            renderSearchResults(records);
+            resultsDiv.style.display = 'block';
+            
+            setTimeout(() => feedbackEl.textContent = '', 3000);
+        } else {
+            feedbackEl.textContent = '❌ Search failed: ' + result.message;
+            feedbackEl.style.color = '#ef4444';
+            setTimeout(() => feedbackEl.textContent = '', 5000);
+        }
+    } catch (error) {
+        console.error('Error searching read DB:', error);
+        const feedbackEl = document.getElementById('rwSearchFeedback');
+        feedbackEl.textContent = '❌ Search failed';
+        feedbackEl.style.color = '#ef4444';
+        setTimeout(() => feedbackEl.textContent = '', 5000);
+    }
+}
+
+function renderSearchResults(records) {
+    const tableBody = document.getElementById('rwSearchTable');
+    const countEl = document.getElementById('rwSearchCount');
+    
+    tableBody.innerHTML = '';
+    countEl.textContent = `${records.length} found`;
+    
+    if (records.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #666;">No records found in Read Database</td></tr>';
+        return;
+    }
+    
+    records.forEach(record => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><strong>${record.order_id}</strong></td>
+            <td>${record.user_id}</td>
+            <td><span style="background: #e0e7ff; padding: 4px 8px; border-radius: 4px;">${record.status}</span></td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+function clearSearch() {
+    document.getElementById('rwSearchValue').value = '';
+    document.getElementById('rwSearchResults').style.display = 'none';
+    document.getElementById('rwSearchFeedback').textContent = '';
+}
+
+// ==================== Migration Functions ====================
+
+let migrationRefreshInterval = null;
+
+async function setupMigrationSource() {
+    const feedbackEl = document.getElementById('migrationFeedback');
+    const setupBtn = document.getElementById('migrationSetupBtn');
+    
+    if (setupBtn) setupBtn.disabled = true;
+    if (feedbackEl) {
+        feedbackEl.textContent = '⏳ Setting up source database...';
+        feedbackEl.style.background = '#eff6ff';
+        feedbackEl.style.color = '#1e40af';
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/migration/setup`, { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.success) {
+            if (feedbackEl) {
+                feedbackEl.textContent = `✅ ${result.message} (${result.recordCount} records)`;
+                feedbackEl.style.background = '#d1fae5';
+                feedbackEl.style.color = '#065f46';
+            }
+            refreshMigrationData();
+        } else {
+            if (feedbackEl) {
+                feedbackEl.textContent = `❌ ${result.message}`;
+                feedbackEl.style.background = '#fee2e2';
+                feedbackEl.style.color = '#991b1b';
+            }
+        }
+    } catch (error) {
+        if (feedbackEl) {
+            feedbackEl.textContent = `❌ Error: ${error.message}`;
+            feedbackEl.style.background = '#fee2e2';
+            feedbackEl.style.color = '#991b1b';
+        }
+    } finally {
+        if (setupBtn) setupBtn.disabled = false;
+        if (feedbackEl) setTimeout(() => feedbackEl.textContent = '', 5000);
+    }
+}
+
+async function startMigration() {
+    const feedbackEl = document.getElementById('migrationFeedback');
+    const startBtn = document.getElementById('migrationStartBtn');
+    const stopBtn = document.getElementById('migrationStopBtn');
+    
+    if (startBtn) startBtn.disabled = true;
+    if (feedbackEl) {
+        feedbackEl.textContent = '⏳ Checking source database...';
+        feedbackEl.style.background = '#eff6ff';
+        feedbackEl.style.color = '#1e40af';
+    }
+    
+    try {
+        // First check if source database has data
+        const sourceStatusResponse = await fetch(`${API_BASE}/migration/status`);
+        const sourceStatus = await sourceStatusResponse.json();
+        
+        if (!sourceStatus.sourceCount || sourceStatus.sourceCount === 0) {
+            if (feedbackEl) {
+                feedbackEl.textContent = '⚠️ Source database is empty! Click "Setup Source DB" first.';
+                feedbackEl.style.background = '#fef3c7';
+                feedbackEl.style.color = '#92400e';
+            }
+            if (startBtn) startBtn.disabled = false;
+            return;
+        }
+        
+        if (feedbackEl) {
+            feedbackEl.textContent = `⏳ Found ${sourceStatus.sourceCount} records. Stopping any existing CDC...`;
+        }
+        
+        // Stop any existing CDC stream first (ignore errors)
+        try {
+            await fetch(`${API_BASE}/stopStreaming`, { method: 'POST' });
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        } catch (e) {
+            console.log('No existing CDC to stop:', e);
+        }
+        
+        if (feedbackEl) {
+            feedbackEl.textContent = `⏳ Preparing target database...`;
+        }
+        
+        // Prepare target database
+        await fetch(`${API_BASE}/migration/prepare`, { method: 'POST' });
+        
+        if (feedbackEl) {
+            feedbackEl.textContent = `⏳ Copying ${sourceStatus.sourceCount} records to target (initial baseline)...`;
+        }
+        
+        // Copy initial data from source to target
+        const copyResponse = await fetch(`${API_BASE}/migration/copyInitialData`, { method: 'POST' });
+        const copyResult = await copyResponse.json();
+        
+        if (copyResult.success) {
+            console.log(`Copied ${copyResult.recordsCopied} records to target`);
+        }
+        
+        if (feedbackEl) {
+            feedbackEl.textContent = '⏳ Starting CDC streaming for ongoing changes...';
+        }
+        
+        // Then start CDC streaming from migration_db (source_db exposed via Proxy)
+        const response = await fetch(`${API_BASE}/startStreaming?database=migration_db&tables=t_order`, {
+            method: 'POST'
+        });
+        
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        let result;
+        
+        if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+        } else {
+            // Handle non-JSON response
+            const text = await response.text();
+            // Check if it's a success message
+            if (text.includes('success') || text.includes('started') || text.includes('streaming')) {
+                result = { success: true, message: text };
+            } else {
+                throw new Error(text || 'Failed to start CDC streaming');
+            }
+        }
+        
+        if (result.success || result.message === 'Already streaming') {
+            if (feedbackEl) {
+                feedbackEl.textContent = '✅ Migration CDC started! Streaming changes from Source DB → Target DB...';
+                feedbackEl.style.background = '#d1fae5';
+                feedbackEl.style.color = '#065f46';
+            }
+            if (stopBtn) stopBtn.disabled = false;
+            
+            // Start auto-refresh
+            if (migrationRefreshInterval) clearInterval(migrationRefreshInterval);
+            migrationRefreshInterval = setInterval(refreshMigrationData, 3000);
+            refreshMigrationData(); // Refresh immediately
+        } else {
+            if (feedbackEl) {
+                feedbackEl.textContent = `⚠️ ${result.message}`;
+                feedbackEl.style.background = '#fef3c7';
+                feedbackEl.style.color = '#92400e';
+            }
+        }
+    } catch (error) {
+        console.error('Migration start error:', error);
+        if (feedbackEl) {
+            feedbackEl.textContent = `❌ Error: ${error.message}`;
+            feedbackEl.style.background = '#fee2e2';
+            feedbackEl.style.color = '#991b1b';
+        }
+    } finally {
+        if (startBtn) startBtn.disabled = false;
+    }
+}
+
+async function stopMigration() {
+    const feedbackEl = document.getElementById('migrationFeedback');
+    const stopBtn = document.getElementById('migrationStopBtn');
+    
+    if (stopBtn) stopBtn.disabled = true;
+    if (feedbackEl) {
+        feedbackEl.textContent = '⏳ Stopping migration...';
+        feedbackEl.style.background = '#eff6ff';
+        feedbackEl.style.color = '#1e40af';
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/stop`, { method: 'POST' });
+        const result = await response.json();
+        
+        if (feedbackEl) {
+            feedbackEl.textContent = '✅ Migration paused';
+            feedbackEl.style.background = '#fef3c7';
+            feedbackEl.style.color = '#92400e';
+        }
+        
+        if (migrationRefreshInterval) {
+            clearInterval(migrationRefreshInterval);
+            migrationRefreshInterval = null;
+        }
+    } catch (error) {
+        if (feedbackEl) {
+            feedbackEl.textContent = `❌ Error: ${error.message}`;
+            feedbackEl.style.background = '#fee2e2';
+            feedbackEl.style.color = '#991b1b';
+        }
+    } finally {
+        setTimeout(() => {
+            if (feedbackEl) feedbackEl.textContent = '';
+            if (stopBtn) stopBtn.disabled = false;
+        }, 5000);
+    }
+}
+
+async function verifyMigration() {
+    const feedbackEl = document.getElementById('migrationFeedback');
+    
+    if (feedbackEl) {
+        feedbackEl.textContent = '⏳ Verifying synchronization...';
+        feedbackEl.style.background = '#eff6ff';
+        feedbackEl.style.color = '#1e40af';
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/migration/verify`);
+        const result = await response.json();
+        
+        if (result.inSync) {
+            if (feedbackEl) {
+                feedbackEl.textContent = `✅ ${result.message}`;
+                feedbackEl.style.background = '#d1fae5';
+                feedbackEl.style.color = '#065f46';
+            }
+        } else {
+            if (feedbackEl) {
+                feedbackEl.textContent = `⚠️ ${result.message}`;
+                feedbackEl.style.background = '#fef3c7';
+                feedbackEl.style.color = '#92400e';
+            }
+        }
+        
+        refreshMigrationData();
+    } catch (error) {
+        if (feedbackEl) {
+            feedbackEl.textContent = `❌ Error: ${error.message}`;
+            feedbackEl.style.background = '#fee2e2';
+            feedbackEl.style.color = '#991b1b';
+        }
+    } finally {
+        if (feedbackEl) setTimeout(() => feedbackEl.textContent = '', 5000);
+    }
+}
+
+async function refreshMigrationData() {
+    try {
+        // Get status
+        const statusResponse = await fetch(`${API_BASE}/migration/status`);
+        const status = await statusResponse.json();
+        
+        // Update counters (with null checks for merged tab)
+        const migrationSourceCountEl = document.getElementById('migrationSourceCount');
+        if (migrationSourceCountEl) migrationSourceCountEl.textContent = status.sourceCount;
+        
+        const migrationTargetCountEl = document.getElementById('migrationTargetCount');
+        if (migrationTargetCountEl) migrationTargetCountEl.textContent = status.targetCount;
+        
+        const migrationLagEl = document.getElementById('migrationLag');
+        if (migrationLagEl) migrationLagEl.textContent = status.lag;
+        
+        const migrationProgressEl = document.getElementById('migrationProgress');
+        if (migrationProgressEl) migrationProgressEl.textContent = status.progress + '%';
+        
+        const migrationProgressPercentEl = document.getElementById('migrationProgressPercent');
+        if (migrationProgressPercentEl) migrationProgressPercentEl.textContent = status.progress + '%';
+        
+        // Update progress bar (if exists)
+        const progressBar = document.getElementById('migrationProgressBar');
+        if (progressBar) {
+            progressBar.style.width = status.progress + '%';
+            if (status.progress > 10) {
+                progressBar.textContent = status.progress + '%';
+            }
+        }
+        
+        // Update status text (if exists)
+        const statusTextEl = document.getElementById('migrationStatusText');
+        if (statusTextEl) {
+            statusTextEl.textContent = status.status;
+            
+            if (status.synchronized) {
+                statusTextEl.style.background = '#d1fae5';
+                statusTextEl.style.color = '#065f46';
+            } else if (status.progress > 0) {
+                statusTextEl.style.background = '#fef3c7';
+                statusTextEl.style.color = '#92400e';
+            }
+        }
+        
+        // Get source records
+        const sourceResponse = await fetch(`${API_BASE}/migration/source/records`);
+        const sourceRecords = await sourceResponse.json();
+        renderMigrationSourceTable(sourceRecords);
+        
+        const migrationSourceBadgeEl = document.getElementById('migrationSourceBadge');
+        if (migrationSourceBadgeEl) migrationSourceBadgeEl.textContent = sourceRecords.length + ' records';
+        
+        // Get target records - Note: target is already being fetched by fetchDataComparison
+        // So we don't need to render it again here, just update the badge
+        const targetResponse = await fetch(`${API_BASE}/migration/target/records`);
+        const targetRecords = await targetResponse.json();
+        // Don't call renderMigrationTargetTable - it's the same as targetDataTable
+        
+        const migrationTargetBadgeEl = document.getElementById('migrationTargetBadge');
+        if (migrationTargetBadgeEl) migrationTargetBadgeEl.textContent = targetRecords.length + ' records';
+        
+    } catch (error) {
+        console.error('Error refreshing migration data:', error);
+    }
+}
+
+function renderMigrationSourceTable(records) {
+    const tableBody = document.getElementById('migrationSourceTable');
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = '';
+    
+    if (records.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #666;">No records in source database</td></tr>';
+        return;
+    }
+    
+    records.forEach(record => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${record.order_id}</td>
+            <td>${record.user_id}</td>
+            <td><span style="background: #dbeafe; padding: 4px 8px; border-radius: 4px;">${record.status}</span></td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+function renderMigrationTargetTable(records) {
+    const tableBody = document.getElementById('migrationTargetTable');
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = '';
+    
+    if (records.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #666;">No records in target database</td></tr>';
+        return;
+    }
+    
+    records.forEach(record => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${record.order_id}</td>
+            <td>${record.user_id}</td>
+            <td><span style="background: #dcfce7; padding: 4px 8px; border-radius: 4px;">${record.status}</span></td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+// ==================== Clear Database Functions ====================
+
+async function clearShardingSphereDb() {
+    if (!confirm('⚠️ Clear all data from ShardingSphere DB (sharding_db)?\n\nThis will delete all records via the Proxy.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/clearShardingSphereDb`, { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('✅ ShardingSphere DB cleared successfully!', 'success');
+            // Refresh the data comparison tab
+            if (window.location.hash === '#replication' || document.querySelector('.tab-content.active')?.id === 'replicationTab') {
+                fetchDataComparison();
+            }
+        } else {
+            showNotification('❌ ' + result.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error clearing ShardingSphere DB:', error);
+        showNotification('❌ Failed to clear ShardingSphere DB', 'error');
+    }
+}
+
+async function clearMigrationSourceDb() {
+    if (!confirm('⚠️ Clear all data from Source DB (source_db)?\n\nThis will delete all records from the migration source database (port 5435).')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/clearMigrationSourceDb`, { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('✅ Source DB cleared successfully!', 'success');
+            // Refresh the migration data
+            if (window.location.hash === '#replication' || document.querySelector('.tab-content.active')?.id === 'replicationTab') {
+                refreshMigrationData();
+            }
+        } else {
+            showNotification('❌ ' + result.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error clearing Source DB:', error);
+        showNotification('❌ Failed to clear Source DB', 'error');
+    }
+}
+
+async function clearTargetDb() {
+    if (!confirm('⚠️ Clear all data from Target DB (target_db)?\n\nThis will delete all records from the multi-source CDC target database (port 5432).')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/clearTargetDb`, { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('✅ Target DB cleared successfully!', 'success');
+            // Refresh all relevant data
+            if (window.location.hash === '#replication' || document.querySelector('.tab-content.active')?.id === 'replicationTab') {
+                fetchDataComparison();
+                refreshMigrationData();
+            }
+        } else {
+            showNotification('❌ ' + result.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error clearing Target DB:', error);
+        showNotification('❌ Failed to clear Target DB', 'error');
+    }
+}
+
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 25px;
+        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        z-index: 10000;
+        font-weight: 600;
+        animation: slideIn 0.3s ease-out;
+    `;
+    notification.textContent = message;
+    
+    // Add animation keyframes
+    if (!document.getElementById('notificationStyles')) {
+        const style = document.createElement('style');
+        style.id = 'notificationStyles';
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(400px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(400px); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-in';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }

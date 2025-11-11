@@ -5,6 +5,7 @@ import org.apache.shardingsphere.example.proxy.cdc.model.CDCStatistics;
 import org.apache.shardingsphere.example.proxy.cdc.model.CDCStatus;
 import org.apache.shardingsphere.example.proxy.cdc.service.CDCClientService;
 import org.apache.shardingsphere.example.proxy.cdc.service.DataGeneratorService;
+import org.apache.shardingsphere.example.proxy.cdc.service.ReplicationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +30,12 @@ public class CDCController {
 
     @Autowired
     private DataGeneratorService dataGeneratorService;
+
+    @Autowired
+    private ReplicationService replicationService;
+
+    @Autowired
+    private org.apache.shardingsphere.example.proxy.cdc.service.MigrationService migrationService;
 
     @PostConstruct
     public void init() {
@@ -178,6 +185,69 @@ public class CDCController {
         }
     }
 
+    /**
+     * Clear ShardingSphere source database only
+     */
+    @PostMapping("/clearShardingSphereDb")
+    public ResponseEntity<Map<String, Object>> clearShardingSphereDb() {
+        try {
+            dataGeneratorService.clearSourceData();
+            log.info("ShardingSphere DB (source) cleared");
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "ShardingSphere DB cleared successfully"
+            ));
+        } catch (Exception e) {
+            log.error("Error clearing ShardingSphere DB", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Clear migration source database only
+     */
+    @PostMapping("/clearMigrationSourceDb")
+    public ResponseEntity<Map<String, Object>> clearMigrationSourceDb() {
+        try {
+            migrationService.clearSourceDatabase();
+            log.info("Migration Source DB cleared");
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Migration Source DB cleared successfully"
+            ));
+        } catch (Exception e) {
+            log.error("Error clearing Migration Source DB", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Clear target database only
+     */
+    @PostMapping("/clearTargetDb")
+    public ResponseEntity<Map<String, Object>> clearTargetDb() {
+        try {
+            dataGeneratorService.clearTargetData();
+            log.info("Target DB cleared");
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Target DB cleared successfully"
+            ));
+        } catch (Exception e) {
+            log.error("Error clearing Target DB", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error: " + e.getMessage()
+            ));
+        }
+    }
+
     @PostMapping("/update/{orderId}")
     public ResponseEntity<Map<String, String>> updateData(
             @PathVariable int orderId,
@@ -251,24 +321,24 @@ public class CDCController {
     }
 
     @GetMapping("/sourceRecordCount")
-    public ResponseEntity<Map<String, Long>> getSourceRecordCount() {
+    public ResponseEntity<Map<String, Object>> getSourceRecordCount() {
         try {
             long count = dataGeneratorService.getSourceRecordCount();
-            return ResponseEntity.ok(Map.of("count", count));
+            return ResponseEntity.ok(Map.of("success", true, "count", count));
         } catch (Exception e) {
             log.error("Error getting source record count", e);
-            return ResponseEntity.status(500).build();
+            return ResponseEntity.ok(Map.of("success", false, "count", 0L, "message", e.getMessage()));
         }
     }
 
     @GetMapping("/targetRecordCount")
-    public ResponseEntity<Map<String, Long>> getTargetRecordCount() {
+    public ResponseEntity<Map<String, Object>> getTargetRecordCount() {
         try {
             long count = dataGeneratorService.getTargetRecordCount();
-            return ResponseEntity.ok(Map.of("count", count));
+            return ResponseEntity.ok(Map.of("success", true, "count", count));
         } catch (Exception e) {
             log.error("Error getting target record count", e);
-            return ResponseEntity.status(500).build();
+            return ResponseEntity.ok(Map.of("success", false, "count", 0L, "message", e.getMessage()));
         }
     }
 
@@ -354,6 +424,313 @@ public class CDCController {
     @PostMapping("/generator/delete")
     public ResponseEntity<Map<String, String>> generatorDelete() {
         return ResponseEntity.ok(Map.of("message", "Delete not implemented"));
+    }
+
+    // ========== Read-Write Splitting Endpoints ==========
+
+    @PostMapping("/replication/enable")
+    public ResponseEntity<Map<String, Object>> enableReplication() {
+        try {
+            replicationService.enableReplication();
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Replication enabled successfully"
+            ));
+        } catch (Exception e) {
+            log.error("Error enabling replication", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error: " + e.getMessage()
+            ));
+        }
+    }
+
+    @PostMapping("/replication/disable")
+    public ResponseEntity<Map<String, Object>> disableReplication() {
+        try {
+            replicationService.disableReplication();
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Replication disabled successfully"
+            ));
+        } catch (Exception e) {
+            log.error("Error disabling replication", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error: " + e.getMessage()
+            ));
+        }
+    }
+
+    @GetMapping("/replication/status")
+    public ResponseEntity<Map<String, Object>> getReplicationStatus() {
+        try {
+            boolean enabled = replicationService.isReplicationEnabled();
+            long writeCount = replicationService.getWriteRecordCount();
+            long readCount = replicationService.getReadRecordCount();
+            
+            return ResponseEntity.ok(Map.of(
+                "enabled", enabled,
+                "writeRecordCount", writeCount,
+                "readRecordCount", readCount,
+                "inSync", writeCount == readCount
+            ));
+        } catch (Exception e) {
+            log.error("Error getting replication status", e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    @PostMapping("/replication/sync")
+    public ResponseEntity<Map<String, Object>> syncReplication() {
+        try {
+            replicationService.manualSync();
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Manual sync completed successfully"
+            ));
+        } catch (Exception e) {
+            log.error("Error syncing replication", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error: " + e.getMessage()
+            ));
+        }
+    }
+
+    @PostMapping("/replication/switch")
+    public ResponseEntity<Map<String, Object>> switchDatabases() {
+        try {
+            replicationService.switchDatabases();
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Database roles switched successfully (write <-> read)"
+            ));
+        } catch (Exception e) {
+            log.error("Error switching databases", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error: " + e.getMessage()
+            ));
+        }
+    }
+
+    @GetMapping("/writeData")
+    public ResponseEntity<Map<String, Object>> getWriteData() {
+        try {
+            List<Map<String, Object>> data = replicationService.getWriteData();
+            return ResponseEntity.ok(Map.of("success", true, "data", data));
+        } catch (Exception e) {
+            log.error("Error getting write data", e);
+            return ResponseEntity.ok(Map.of("success", false, "message", e.getMessage(), "data", List.of()));
+        }
+    }
+
+    @GetMapping("/readData")
+    public ResponseEntity<Map<String, Object>> getReadData() {
+        try {
+            List<Map<String, Object>> data = replicationService.getReadData();
+            return ResponseEntity.ok(Map.of("success", true, "data", data));
+        } catch (Exception e) {
+            log.error("Error getting read data", e);
+            return ResponseEntity.ok(Map.of("success", false, "message", e.getMessage(), "data", List.of()));
+        }
+    }
+
+    @GetMapping("/writeRecordCount")
+    public ResponseEntity<Map<String, Long>> getWriteRecordCount() {
+        try {
+            long count = replicationService.getWriteRecordCount();
+            return ResponseEntity.ok(Map.of("count", count));
+        } catch (Exception e) {
+            log.error("Error getting write record count", e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    @GetMapping("/readRecordCount")
+    public ResponseEntity<Map<String, Long>> getReadRecordCount() {
+        try {
+            long count = replicationService.getReadRecordCount();
+            return ResponseEntity.ok(Map.of("count", count));
+        } catch (Exception e) {
+            log.error("Error getting read record count", e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+    
+    @PostMapping("/replication/insertWrite")
+    public ResponseEntity<Map<String, Object>> insertToWriteDb(
+            @RequestParam int userId,
+            @RequestParam String status) {
+        try {
+            replicationService.insertToWriteDb(userId, status);
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Record inserted to write database successfully"
+            ));
+        } catch (Exception e) {
+            log.error("Error inserting to write database", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error: " + e.getMessage()
+            ));
+        }
+    }
+    
+    @GetMapping("/replication/searchRead")
+    public ResponseEntity<Map<String, Object>> searchReadDatabase(
+            @RequestParam(required = false) Integer order_id,
+            @RequestParam(required = false) Integer user_id) {
+        try {
+            String searchType;
+            int searchValue;
+            
+            if (order_id != null) {
+                searchType = "order_id";
+                searchValue = order_id;
+            } else if (user_id != null) {
+                searchType = "user_id";
+                searchValue = user_id;
+            } else {
+                return ResponseEntity.ok(Map.of(
+                    "success", false,
+                    "message", "Please provide either order_id or user_id parameter",
+                    "data", List.of()
+                ));
+            }
+            
+            List<Map<String, Object>> results = replicationService.searchReadDatabase(searchType, searchValue);
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "data", results,
+                "message", "Found " + results.size() + " record(s) in read database"
+            ));
+        } catch (Exception e) {
+            log.error("Error searching read database", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error: " + e.getMessage(),
+                "data", List.of()
+            ));
+        }
+    }
+
+    // ==================== Migration Endpoints ====================
+
+    /**
+     * Setup source database with sample data
+     */
+    @PostMapping("/migration/setup")
+    public ResponseEntity<Map<String, Object>> setupMigrationSource() {
+        try {
+            log.info("Setting up migration source database");
+            Map<String, Object> result = migrationService.setupSourceDatabase();
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error setting up migration source", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Prepare target database
+     */
+    @PostMapping("/migration/prepare")
+    public ResponseEntity<Map<String, Object>> prepareMigrationTarget() {
+        try {
+            log.info("Preparing migration target database");
+            Map<String, Object> result = migrationService.prepareTargetDatabase();
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error preparing migration target", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Copy initial data from source to target (baseline before CDC)
+     */
+    @PostMapping("/migration/copyInitialData")
+    public ResponseEntity<Map<String, Object>> copyInitialMigrationData() {
+        try {
+            log.info("Copying initial migration data from source to target");
+            Map<String, Object> result = migrationService.copyInitialData();
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error copying initial migration data", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Get migration status
+     */
+    @GetMapping("/migration/status")
+    public ResponseEntity<Map<String, Object>> getMigrationStatus() {
+        try {
+            Map<String, Object> status = migrationService.getMigrationStatus();
+            return ResponseEntity.ok(status);
+        } catch (Exception e) {
+            log.error("Error getting migration status", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "error", "Error: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Get source database records
+     */
+    @GetMapping("/migration/source/records")
+    public ResponseEntity<List<Map<String, Object>>> getMigrationSourceRecords() {
+        try {
+            List<Map<String, Object>> records = migrationService.getSourceRecords();
+            return ResponseEntity.ok(records);
+        } catch (Exception e) {
+            log.error("Error getting migration source records", e);
+            return ResponseEntity.status(500).body(List.of());
+        }
+    }
+
+    /**
+     * Get target database records
+     */
+    @GetMapping("/migration/target/records")
+    public ResponseEntity<List<Map<String, Object>>> getMigrationTargetRecords() {
+        try {
+            List<Map<String, Object>> records = migrationService.getTargetRecords();
+            return ResponseEntity.ok(records);
+        } catch (Exception e) {
+            log.error("Error getting migration target records", e);
+            return ResponseEntity.status(500).body(List.of());
+        }
+    }
+
+    /**
+     * Verify sync between source and target
+     */
+    @GetMapping("/migration/verify")
+    public ResponseEntity<Map<String, Object>> verifyMigrationSync() {
+        try {
+            Map<String, Object> result = migrationService.verifySync();
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error verifying migration sync", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error: " + e.getMessage()
+            ));
+        }
     }
 }
 
