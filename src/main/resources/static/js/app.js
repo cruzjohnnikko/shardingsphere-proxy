@@ -413,9 +413,10 @@ async function startGenerator() {
     try {
         const interval = document.getElementById('interval').value;
         const operationType = document.getElementById('operationType').value;
+        const database = document.getElementById('targetDatabase').value;
         
         startGeneratorBtn.disabled = true;
-        const response = await fetch(`${API_BASE}/generator/start?interval=${interval}&operation=${operationType}`, { 
+        const response = await fetch(`${API_BASE}/generator/start?interval=${interval}&operation=${operationType}&database=${database}`, { 
             method: 'POST' 
         });
         const result = await response.json();
@@ -474,16 +475,19 @@ async function manualInsert() {
 
 async function pollStatus() {
     try {
-        const [statusResponse, generatorResponse] = await Promise.all([
+        const [statusResponse, generatorResponse, streamsResponse] = await Promise.all([
             fetch(`${API_BASE}/status`),
-            fetch(`${API_BASE}/generator/status`)
+            fetch(`${API_BASE}/generator/status`),
+            fetch(`${API_BASE}/streams/status`)
         ]);
         
         const status = await statusResponse.json();
         const generatorStatus = await generatorResponse.json();
+        const streamsStatus = await streamsResponse.json();
         
         updateCDCStatus(status);
         updateGeneratorStatus(generatorStatus.running);
+        updateCDCStreamsStatus(streamsStatus);
         
         if (!status.streaming) {
             // Also fetch statistics even when not streaming
@@ -493,6 +497,62 @@ async function pollStatus() {
         }
     } catch (error) {
         console.error('Failed to poll status:', error);
+    }
+}
+
+// Update CDC streams indicators
+function updateCDCStreamsStatus(status) {
+    const shardingCdcEl = document.getElementById('shardingCdcStatus');
+    const migrationCdcEl = document.getElementById('migrationCdcStatus');
+    
+    if (shardingCdcEl) {
+        if (status.shardingCdcActive) {
+            shardingCdcEl.textContent = '✅ Active';
+            shardingCdcEl.className = 'status-badge streaming';
+            shardingCdcEl.style.background = 'rgba(34, 197, 94, 0.3)';
+            shardingCdcEl.style.border = '1px solid rgba(34, 197, 94, 0.6)';
+        } else {
+            shardingCdcEl.textContent = '⏸️ Inactive';
+            shardingCdcEl.className = 'status-badge stopped';
+            shardingCdcEl.style.background = 'rgba(255,255,255,0.2)';
+            shardingCdcEl.style.border = '1px solid rgba(255,255,255,0.3)';
+        }
+    }
+    
+    if (migrationCdcEl) {
+        if (status.migrationCdcActive) {
+            migrationCdcEl.textContent = '✅ Active';
+            migrationCdcEl.className = 'status-badge streaming';
+            migrationCdcEl.style.background = 'rgba(34, 197, 94, 0.3)';
+            migrationCdcEl.style.border = '1px solid rgba(34, 197, 94, 0.6)';
+        } else {
+            migrationCdcEl.textContent = '⏸️ Inactive';
+            migrationCdcEl.className = 'status-badge stopped';
+            migrationCdcEl.style.background = 'rgba(255,255,255,0.2)';
+            migrationCdcEl.style.border = '1px solid rgba(255,255,255,0.3)';
+        }
+    }
+}
+
+function updateGeneratorStatus(isRunning) {
+    const startGeneratorBtn = document.getElementById('startGeneratorBtn');
+    const stopGeneratorBtn = document.getElementById('stopGeneratorBtn');
+    const generatorStatusEl = document.getElementById('generatorStatus');
+    
+    if (isRunning) {
+        if (startGeneratorBtn) startGeneratorBtn.disabled = true;
+        if (stopGeneratorBtn) stopGeneratorBtn.disabled = false;
+        if (generatorStatusEl) {
+            generatorStatusEl.textContent = 'Running';
+            generatorStatusEl.className = 'status-badge streaming';
+        }
+    } else {
+        if (startGeneratorBtn) startGeneratorBtn.disabled = false;
+        if (stopGeneratorBtn) stopGeneratorBtn.disabled = true;
+        if (generatorStatusEl) {
+            generatorStatusEl.textContent = 'Stopped';
+            generatorStatusEl.className = 'status-badge stopped';
+        }
     }
 }
 
@@ -507,8 +567,8 @@ function updateCDCStatus(status) {
     
     if (status.streaming) {
         if (cdcStatusEl) {
-        cdcStatusEl.textContent = 'Streaming';
-        cdcStatusEl.className = 'status-badge streaming';
+            cdcStatusEl.textContent = 'Streaming';
+            cdcStatusEl.className = 'status-badge streaming';
         }
         // Update status text in replication tab
         if (cdcStreamingStatusText) {
@@ -521,8 +581,8 @@ function updateCDCStatus(status) {
         if (connectBtn) connectBtn.disabled = true;
     } else if (status.connected) {
         if (cdcStatusEl) {
-        cdcStatusEl.textContent = 'Connected';
-        cdcStatusEl.className = 'status-badge connected';
+            cdcStatusEl.textContent = 'Connected';
+            cdcStatusEl.className = 'status-badge connected';
         }
         // Update status text in replication tab
         if (cdcStreamingStatusText) {
@@ -535,8 +595,8 @@ function updateCDCStatus(status) {
         if (connectBtn) connectBtn.disabled = true;
     } else {
         if (cdcStatusEl) {
-        cdcStatusEl.textContent = 'Disconnected';
-        cdcStatusEl.className = 'status-badge disconnected';
+            cdcStatusEl.textContent = 'Disconnected';
+            cdcStatusEl.className = 'status-badge disconnected';
         }
         // Update status text in replication tab
         if (cdcStreamingStatusText) {
@@ -547,18 +607,6 @@ function updateCDCStatus(status) {
         if (stopStreamingBtn) stopStreamingBtn.disabled = true;
         if (stopBtn) stopBtn.disabled = true;
         if (connectBtn) connectBtn.disabled = false;
-    }
-}
-
-function updateGeneratorStatus(running) {
-    if (!generatorStatusEl) return;
-    
-    if (running) {
-        generatorStatusEl.textContent = 'Running';
-        generatorStatusEl.className = 'status-badge running';
-    } else {
-        generatorStatusEl.textContent = 'Stopped';
-        generatorStatusEl.className = 'status-badge stopped';
     }
 }
 

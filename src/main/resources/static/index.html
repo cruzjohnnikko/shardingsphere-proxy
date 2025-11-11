@@ -34,7 +34,7 @@
         <!-- Connection Status -->
         <div class="status-bar">
             <div class="status-item">
-                <span class="status-label">CDC Status:</span>
+                <span class="status-label">CDC Connection:</span>
                 <span id="cdcStatus" class="status-badge disconnected">Disconnected</span>
             </div>
             <div class="status-item">
@@ -44,6 +44,21 @@
             <div class="status-item">
                 <span class="status-label">WebSocket:</span>
                 <span id="wsStatus" class="status-badge disconnected">Disconnected</span>
+            </div>
+        </div>
+
+        <!-- Active CDC Streams Indicator -->
+        <div class="status-bar" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; margin-top: 15px; padding: 15px 20px;">
+            <div style="color: white; font-weight: 600; margin-bottom: 10px; font-size: 14px;">🔄 Active CDC Streams:</div>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <div class="status-item" style="flex: 1; min-width: 200px;">
+                    <span style="color: rgba(255,255,255,0.9); font-size: 12px;">ShardingSphere CDC:</span>
+                    <span id="shardingCdcStatus" class="status-badge" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);">Inactive</span>
+                </div>
+                <div class="status-item" style="flex: 1; min-width: 200px;">
+                    <span style="color: rgba(255,255,255,0.9); font-size: 12px;">Migration CDC:</span>
+                    <span id="migrationCdcStatus" class="status-badge" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);">Inactive</span>
+                </div>
             </div>
         </div>
 
@@ -58,6 +73,13 @@
 
             <div class="control-section">
                 <h2>Data Generator</h2>
+                <div class="form-group">
+                    <label for="targetDatabase">Target Database:</label>
+                    <select id="targetDatabase" class="form-control">
+                        <option value="sharding_db">ShardingSphere DB (sharding_db via Proxy :3308)</option>
+                        <option value="source_db">Migration Source DB (source_db :5435)</option>
+                    </select>
+                </div>
                 <div class="form-group">
                     <label for="operationType">Operation Type:</label>
                     <select id="operationType" class="form-control">

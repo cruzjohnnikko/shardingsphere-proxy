@@ -110,9 +110,9 @@ public class ReplicationService {
 
             // Clear and repopulate read DB
             try (Connection conn = DriverManager.getConnection(readDbUrl, readDbUsername, readDbPassword)) {
-                // Clear existing data
+                // Clear existing data (Use DELETE instead of TRUNCATE to avoid breaking CDC)
                 try (Statement stmt = conn.createStatement()) {
-                    stmt.execute("TRUNCATE TABLE t_order RESTART IDENTITY");
+                    stmt.execute("DELETE FROM t_order");
                 }
 
                 // Insert all data from write DB

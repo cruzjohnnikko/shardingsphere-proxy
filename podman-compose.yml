@@ -78,11 +78,36 @@ services:
     networks:
       - cdc_network
 
+  # ZooKeeper for ShardingSphere Cluster Mode
+  zookeeper:
+    image: zookeeper:3.8
+    container_name: zookeeper
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=0.0.0.0:2888:3888;2181
+      ZOO_4LW_COMMANDS_WHITELIST: "*"
+    ports:
+      - "2181:2181"
+      - "2888:2888"
+      - "3888:3888"
+    volumes:
+      - zookeeper_data:/data
+      - zookeeper_datalog:/datalog
+    networks:
+      - cdc_network
+    healthcheck:
+      test: ["CMD", "zkServer.sh", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
 volumes:
   postgres_write_data:
   postgres_read_data:
   postgres_target_data:
   postgres_source_data:
+  zookeeper_data:
+  zookeeper_datalog:
 
 networks:
   cdc_network:

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -74,6 +75,41 @@ public class CDCController {
         }
     }
 
+    /**
+     * Get detailed status of all CDC streams
+     */
+    @GetMapping("/streams/status")
+    public ResponseEntity<Map<String, Object>> getStreamsStatus() {
+        try {
+            boolean connected = cdcClientService.isConnected();
+            boolean streaming = cdcClientService.isStreaming();
+            String currentDatabase = cdcClientService.getCurrentStreamingDatabase();
+            
+            // Determine which CDC stream is active based on the database being monitored
+            boolean shardingCdcActive = streaming && "sharding_db".equals(currentDatabase);
+            boolean migrationCdcActive = streaming && "migration_db".equals(currentDatabase);
+            
+            Map<String, Object> status = new HashMap<>();
+            status.put("connected", connected);
+            status.put("shardingCdcActive", shardingCdcActive);
+            status.put("migrationCdcActive", migrationCdcActive);
+            status.put("currentDatabase", currentDatabase); // For debugging
+            
+            log.debug("CDC Streams Status - Connected: {}, Streaming: {}, Database: {}, ShardingActive: {}, MigrationActive: {}", 
+                connected, streaming, currentDatabase, shardingCdcActive, migrationCdcActive);
+            
+            return ResponseEntity.ok(status);
+        } catch (Exception e) {
+            log.error("Error getting streams status", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "connected", false,
+                "shardingCdcActive", false,
+                "migrationCdcActive", false,
+                "error", e.getMessage()
+            ));
+        }
+    }
+
     @PostMapping("/connect")
     public ResponseEntity<Map<String, Object>> connect() {
         try {
@@ -129,10 +165,11 @@ public class CDCController {
 
     @PostMapping("/generate")
     public ResponseEntity<Map<String, String>> generateData(
-            @RequestParam(defaultValue = "10") int count) {
+            @RequestParam(defaultValue = "10") int count,
+            @RequestParam(defaultValue = "sharding_db") String database) {
         try {
-            dataGeneratorService.generateData(count);
-            return ResponseEntity.ok(Map.of("message", count + " records generated"));
+            dataGeneratorService.generateData(count, database);
+            return ResponseEntity.ok(Map.of("message", count + " records generated to " + database));
         } catch (Exception e) {
             log.error("Error generating data", e);
             return ResponseEntity.status(500)
@@ -364,12 +401,13 @@ public class CDCController {
     @PostMapping("/generator/start")
     public ResponseEntity<Map<String, Object>> startGenerator(
             @RequestParam(defaultValue = "1000") int interval,
-            @RequestParam(defaultValue = "MIXED") String operation) {
+            @RequestParam(defaultValue = "MIXED") String operation,
+            @RequestParam(defaultValue = "sharding_db") String database) {
         try {
-            dataGeneratorService.startGenerator(interval, operation);
+            dataGeneratorService.startGenerator(interval, operation, database);
             return ResponseEntity.ok(Map.of(
                 "success", true,
-                "message", "Data generator started with interval " + interval + "ms"
+                "message", "Data generator started for " + database + " with interval " + interval + "ms"
             ));
         } catch (Exception e) {
             log.error("Error starting generator", e);

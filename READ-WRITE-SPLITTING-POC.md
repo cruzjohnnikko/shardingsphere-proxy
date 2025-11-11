@@ -48,14 +48,14 @@ According to the [official ShardingSphere documentation](https://shardingsphere.
          ↓         │                 │         ↓
   ┌──────────────┐│                 │┌──────────────┐
   │   Read DB    ││                 ││   Write DB   │
-  │ (Port 5432)  ││                 ││ (Port 5432)  │
-  │              ││                 ││              │
+  │ (Port 5433)  ││                 ││ (Port 5432)  │
+  │  postgres    ││                 ││   postgres   │
   │ SELECT only  ││                 ││ All DML ops  │
   └──────────────┘│                 │└──────────────┘
                    │                 │
                    │   Replication   │
                    └────────────────►│
-                      (Manual in POC)
+              (Manual sync in POC)
 ```
 
 **Key Points from Official Documentation:**
@@ -95,9 +95,11 @@ According to the [official ShardingSphere documentation](https://shardingsphere.
 This investigation covered:
 
 ✅ **Manual Read-Write Splitting Implementation**
-- Separate read and write PostgreSQL databases (both on port 5432)
+- Separate read and write PostgreSQL databases:
+  - **Write DB**: Port 5432 (`postgres` database in `postgres_write` container)
+  - **Read DB**: Port 5433 (`postgres` database in `postgres_read` container)
 - Manual replication controls (enable/disable, manual sync)
-- Application-level routing logic (not using ShardingSphere routing)
+- Application-level routing logic (demonstrates concept without ShardingSphere routing)
 
 ✅ **Database Operations Validation**
 - **Write Operations:** INSERT to write database only
@@ -219,8 +221,8 @@ The POC was developed using a pragmatic, feature-first approach:
 │            ↓        │               │        ↓                │
 │  ┌──────────────────┐               ┌──────────────────┐     │
 │  │   Write DB       │  Replication  │    Read DB       │     │
-│  │  (Port 5432)     │  ───────────► │  (Port 5432)     │     │
-│  │  write_db        │  (Manual)     │  read_db         │     │
+│  │  (Port 5432)     │  ───────────► │  (Port 5433)     │     │
+│  │  postgres        │  (Manual)     │  postgres        │     │
 │  │                  │               │                  │     │
 │  │  INSERT/UPDATE/  │               │  SELECT queries  │     │
 │  │  DELETE          │               │  only            │     │
@@ -1002,14 +1004,21 @@ shardingsphere-proxy-cdc/
 
 ### B. Database Configuration
 
-**2 PostgreSQL Databases Used (both on port 5432):**
+**2 PostgreSQL Databases Used:**
 
-1. **write_db** - Primary database for writes
+1. **postgres (Write DB - Port 5432)** - Primary database for all write operations
+   - Container: `postgres_write`
+   - Database: `postgres`
+   - Purpose: Handles all INSERT, UPDATE, DELETE operations
    - Accepts: INSERT, UPDATE, DELETE, SELECT
    - Managed by: Application layer
 
-2. **read_db** - Replica database for reads
-   - Accepts: SELECT only (by convention)
+2. **postgres (Read DB - Port 5433)** - Replica database for all read operations
+   - Container: `postgres_read`
+   - Database: `postgres`
+   - Purpose: Handles all SELECT queries
+   - Accepts: SELECT only (by application convention)
+   - Synced from: Write DB via manual replication in this POC
    - Updated by: Manual replication from write_db
 
 **Container Configuration:**
@@ -1088,7 +1097,7 @@ databaseName: readwrite_splitting_db
 
 dataSources:
   write_ds:
-    url: jdbc:postgresql://localhost:5432/write_db
+    url: jdbc:postgresql://localhost:5432/postgres
     username: postgres
     password: postgres
     connectionTimeoutMilliseconds: 30000
@@ -1098,7 +1107,7 @@ dataSources:
     minPoolSize: 1
 
   read_ds_0:
-    url: jdbc:postgresql://localhost:5432/read_db
+    url: jdbc:postgresql://localhost:5433/postgres
     username: postgres
     password: postgres
     connectionTimeoutMilliseconds: 30000
@@ -1133,17 +1142,17 @@ rules:
 podman-compose up -d
 
 # Connect to write database
-psql -h localhost -p 5432 -U postgres -d write_db
+psql -h localhost -p 5432 -U postgres -d postgres
 
 # Connect to read database
-psql -h localhost -p 5432 -U postgres -d read_db
+psql -h localhost -p 5433 -U postgres -d postgres
 
 # Check write DB records
-psql -h localhost -p 5432 -U postgres -d write_db -c \
+psql -h localhost -p 5432 -U postgres -d postgres -c \
   "SELECT COUNT(*) FROM t_order;"
 
 # Check read DB records
-psql -h localhost -p 5432 -U postgres -d read_db -c \
+psql -h localhost -p 5433 -U postgres -d postgres -c \
   "SELECT COUNT(*) FROM t_order;"
 
 # Enable replication via API

@@ -296,7 +296,8 @@ public class MigrationService {
         
         try (Connection conn = DriverManager.getConnection(sourceDbUrl, sourceDbUsername, sourceDbPassword);
              Statement stmt = conn.createStatement()) {
-            stmt.execute("TRUNCATE TABLE t_order CASCADE");
+            // Use DELETE instead of TRUNCATE to avoid breaking CDC (ShardingSphere doesn't support TRUNCATE in WAL)
+            stmt.execute("DELETE FROM t_order");
             log.info("Migration source database cleared");
         } catch (SQLException e) {
             log.error("Error clearing migration source database", e);
